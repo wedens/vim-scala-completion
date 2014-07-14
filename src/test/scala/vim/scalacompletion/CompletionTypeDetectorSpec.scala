@@ -83,5 +83,23 @@ class CompletionTypeDetectorSpec extends Specification {
 
       detector.detect(line, line.indexOf("=>") - 1) must_== CompletionType.Scope
     }
+
+    "not detect completion after dot inside string" in {
+       val line = "val str = \"some. string\""
+
+       detector.detect(line, line.indexOf(".")) must_== CompletionType.NoCompletion
+    }
+
+    "detect scope completion in string concatenation" in {
+       val line = "val str = \"some string\" +   + \"another string\""
+
+       detector.detect(line, line.indexOf("+") + 2) must_== CompletionType.Scope
+    }
+
+    "detect scope completion after $ inside interpolated string" in {
+      val line = "s\"some text $ \""
+
+      detector.detect(line, line.indexOf("$")) must_== CompletionType.Scope
+    }
   }
 }

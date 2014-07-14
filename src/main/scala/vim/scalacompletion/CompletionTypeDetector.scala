@@ -5,43 +5,33 @@ class CompletionTypeDetector {
     val (beforePos, afterPos) = line.splitAt(pos + 1)
     val lineBeforePosReversed = beforePos.reverse
 
-    lineBeforePosReversed.headOption match {
-      case Some('.') => CompletionType.Type
-      case None => CompletionType.Scope
+    def isInfix(str: String) = {
+      val skipWord = str.dropWhile(!_.isSpaceChar)
+      skipWord.headOption match {
+        case Some(ch) if ch.isLetterOrDigit => true
+        case _ => false
+      }
     }
-    // // var1.<completion here>
-    // if (line.charAt(pos) == '.') {
-    //   CompletionType.Type
-    // } else {
-    //   val withoutCodeAfterPos = line.take(pos + 1)
-    //   val withoutSpacesReversed = withoutCodeAfterPos.reverse.dropWhile(_.isSpaceChar)
-    //   withoutSpacesReversed.headOption match {
-    //     // f(); <completion here>
-    //     case Some(';') => CompletionType.Scope
-    //     // <empty space><completion here>
-    //     case None => CompletionType.Scope
-    //     case _ => 
-    //       val withoutLastWord = withoutSpacesReversed.dropWhile(!_.isSpaceChar)
-    //       val preceedingSpace = withoutLastWord.nonEmpty
 
-    //       if (preceedingSpace) {
-    //         val withoutPreceedingSpaces = withoutLastWord.dropWhile(_.isSpaceChar)
-    //         val charBeforeSpaces = withoutPreceedingSpaces.headOption
-    //         charBeforeSpaces match {
-    //           //<empty space>var1 <completion here>
-    //           case None => CompletionType.Type 
-    //           // var1;  cvar2  <completion here>
-    //           case Some(';') => CompletionType.Type
-    //           // infix method call
-    //           // variable ! <completion here>
-    //           case Some(ch) if ch.isLetterOrDigit => CompletionType.Scope
-    //           case _ => CompletionType.Type
-    //         }
-    //       // var1 <completion here>
-    //       } else {
-    //         CompletionType.Type
-    //       }
-    //   }
-    // }
+    val insideOfString = lineBeforePosReversed.count(_ == '"') % 2 != 0
+    if (insideOfString) {
+      lineBeforePosReversed.headOption match {
+        case Some('$') => CompletionType.Scope
+        case _ => CompletionType.NoCompletion
+      }
+    } else {
+      lineBeforePosReversed.headOption match {
+        case Some('.') => CompletionType.Type
+        case _ =>
+          val withoutSpaces = lineBeforePosReversed.dropWhile(_.isSpaceChar)
+          withoutSpaces.headOption match {
+            case None => CompletionType.Scope
+            case Some(';') => CompletionType.Scope
+            case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
+            case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
+            case _ => CompletionType.Scope
+          }
+      }
+    }
   }
 }
