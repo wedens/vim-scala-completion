@@ -66,11 +66,11 @@ class CompletionTypeDetectorSpec extends Specification {
        detector.detect(line, line.indexOf(".")) must_== CompletionType.Type
     }
 
-    // "detect type completion in the middle of expression with infix operator" in {
-    //    val line = "x   y :: z :: Nil"
+    "detect type completion in the middle of expression with infix operator" in {
+       val line = "val list = x   y :: z :: Nil"
 
-    //    detector.detect(line, line.indexOf("x") + 2) must_== CompletionType.Type
-    // }
+       detector.detect(line, line.indexOf("x") + 3) must_== CompletionType.Type
+    }
 
     "detect scope completion in the middle of type expression" in {
       val line = "type X[T] = ValidationNel[ ,Option[T]]"
