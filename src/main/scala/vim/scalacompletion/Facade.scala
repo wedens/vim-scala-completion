@@ -6,7 +6,7 @@ import scala.tools.nsc.interactive.Global
 trait Facade {
   type MemberInfoType
 
-  val compilerApi: Global with CompilerApi
+  val compilerApi: Compiler
   val completionTypeDetector: CompletionTypeDetector
   val extractor: compilerApi.Member => MemberInfoType
 
