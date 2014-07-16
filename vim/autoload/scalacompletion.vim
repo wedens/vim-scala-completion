@@ -32,7 +32,7 @@ fu! s:doCompletion()
   let result = system(command)
 
   try
-    let completions = eval(res)
+    let completions = eval(result)
     return completions
   catch
     echom 'Completion failed. Response from server: '.result
