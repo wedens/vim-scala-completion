@@ -3,7 +3,7 @@ package vim.scalacompletion.api
 import spray.routing.HttpService
 import vim.scalacompletion.{Facade, MemberInfoExtractor,
                     CompilerFactory, SourceFileFactoryImpl, MemberInfo,
-                    CompletionTypeDetector}
+                    CompletionTypeDetector, MemberInfoFilter}
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import java.io.{File => JFile}
@@ -19,6 +19,7 @@ class SprayApiActor extends Actor with SprayApi with ActorLogging {
     val extractor = MemberInfoExtractor(compilerApi)
     val completionTypeDetector = new CompletionTypeDetector
     val sourceFileFactory = new SourceFileFactoryImpl
+    val membersFilter: MemberInfoType => Boolean = MemberInfoFilter
   }
 
   val transformer = new VimFormatTransformer
@@ -33,8 +34,8 @@ trait SprayApi extends HttpService {
 
   val apiRoutes = path("completion") {
     get {
-      parameters('name, 'file_path, 'offset.as[Int], 'column.as[Int]) { (name, filePath, offset, column) =>
-        val completionResult = facade.completeAt(name, filePath, offset, column)
+      parameters('name, 'file_path, 'offset.as[Int], 'column.as[Int], 'prefix) { (name, filePath, offset, column, prefix) =>
+        val completionResult = facade.completeAt(name, filePath, offset, column, prefix)
         val transformedCompletion = transformer.transformCompletion(completionResult)
         complete(transformedCompletion)
       }

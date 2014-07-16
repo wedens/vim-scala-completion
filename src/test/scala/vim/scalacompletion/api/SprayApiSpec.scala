@@ -28,35 +28,42 @@ class SprayApiSpec extends Specification with Specs2RouteTest
     "GET /completion" should {
       "call completion" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt)
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, anyString)
         }
       }
 
       "call completion with correct position" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, anyString,  meq(25), meq(14))
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+          there was one(facade).completeAt(anyString, anyString,  meq(25), meq(14), anyString)
         }
       }
 
       "call completion with correct name" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(meq(path), anyString, anyInt, anyInt)
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+          there was one(facade).completeAt(meq(path), anyString, anyInt, anyInt, anyString)
         }
       }
 
       "call completion with correct file path" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, meq(tempPath), anyInt, anyInt)
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+          there was one(facade).completeAt(anyString, meq(tempPath), anyInt, anyInt, anyString)
+        }
+      }
+
+      "call completion with correct prefix" in {
+        transformer.transformCompletion(any) returns ""
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, meq("abc"))
         }
       }
 
       "transform completion result" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
           there was one(transformer).transformCompletion(any)
         }
       }
@@ -65,7 +72,7 @@ class SprayApiSpec extends Specification with Specs2RouteTest
         val transformed = "[{'word': 'a'}, {'word': 'b'}]"
         transformer.transformCompletion(any) returns transformed
 
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
           responseAs[String] must_== transformed
         }
       }
