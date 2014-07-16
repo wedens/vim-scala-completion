@@ -28,7 +28,7 @@ fu! s:doCompletion()
   let column = s:startOfWord()
 
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s "'.server_url.'?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset.'&column='.column.'"'
+  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset.'&column='.column.'"'
   let result = system(command)
 
   try
