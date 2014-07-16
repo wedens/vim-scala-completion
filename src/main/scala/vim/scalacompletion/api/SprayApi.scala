@@ -20,6 +20,7 @@ class SprayApiActor extends Actor with SprayApi with ActorLogging {
     val completionTypeDetector = new CompletionTypeDetector
     val sourceFileFactory = new SourceFileFactoryImpl
     val membersFilter: MemberInfoType => Boolean = MemberInfoFilter
+    val membersRanking: MemberInfoType => Int = m => 0
   }
 
   val transformer = new VimFormatTransformer

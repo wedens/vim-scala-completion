@@ -13,6 +13,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
   var completionTypeDetector: CompletionTypeDetector = _
   var sourceFileFactory: SourceFileFactory = _
   var membersFilter: String => Boolean = _
+  var membersRanking: String => Int = _
 
   var facade: Facade = _
 
@@ -30,6 +31,9 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     membersFilter = mock[Function1[String, Boolean]]
     membersFilter.apply(any) returns true
 
+    membersRanking = mock[Function1[String, Int]]
+    membersRanking.apply(any) returns 0
+
     facade = new Facade {
       type MemberInfoType = String
       val compilerApi = self.compilerApi
@@ -37,6 +41,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
       val extractor: compilerApi.Member => MemberInfoType = m => m.toString
       val sourceFileFactory = self.sourceFileFactory
       val membersFilter = self.membersFilter
+      val membersRanking = self.membersRanking
     }
   }
 
@@ -121,6 +126,25 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         facade.completeAt(sourceName, sourcePath, 35, 15, "")
 
         there was one(membersFilter).apply("str")
+      }
+
+      "rank members" in {
+        stubSourceFactory()
+        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
+        compilerApi.typeCompletion[String](any, any) returns Seq("str")
+
+        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+
+        there was one(membersRanking).apply("str")
+      }
+
+      "sort members by rank desc" in {
+        stubSourceFactory()
+        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
+        compilerApi.typeCompletion[String](any, any) returns Seq("str", "str2")
+        membersRanking.apply(anyString) returns 1 thenReturns 10
+
+        facade.completeAt(sourceName, sourcePath, 35, 15, "") must_== Seq("str2", "str")
       }
     }
   }

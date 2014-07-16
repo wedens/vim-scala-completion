@@ -8,6 +8,7 @@ trait Facade extends WithLog {
   val extractor: compilerApi.Member => MemberInfoType
   val sourceFileFactory: SourceFileFactory
   val membersFilter: MemberInfoType => Boolean
+  val membersRanking: MemberInfoType => Int
 
   def completeAt(name: String, path: String, offset: Int, column: Int, prefix: String): Seq[MemberInfoType] = {
     val source = sourceFileFactory.createSourceFile(name, path)
@@ -28,6 +29,12 @@ trait Facade extends WithLog {
       case _ => Seq.empty
     }
 
-    completionResult.filter(membersFilter)
+    completionResult
+      .view
+      .filter(membersFilter)
+      .map(member => (member, membersRanking(member)))
+      .sortBy { case (_, rank) => -rank }
+      .map { case (member, _) => member }
+      .force
   }
 }
