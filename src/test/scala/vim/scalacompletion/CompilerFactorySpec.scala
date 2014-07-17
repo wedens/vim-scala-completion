@@ -2,7 +2,7 @@ package vim.scalacompletion
 
 import org.specs2.mutable._
 import java.io.{File => JFile}
-import scala.tools.nsc.reporters.{StoreReporter, ConsoleReporter}
+import scala.tools.nsc.reporters.StoreReporter
 
 class CompilerFactorySpec extends Specification {
   val rtJarPath = "/rt.jar"
@@ -10,7 +10,7 @@ class CompilerFactorySpec extends Specification {
   val scalazJarPath = "/scalaz-core_2.11-7.0.6.jar"
 
   def jars = Seq(
-    new JFile(getClass().getResource(rtJarPath).toURI), 
+    new JFile(getClass().getResource(rtJarPath).toURI),
     new JFile(getClass().getResource(scalaLibJarPath).toURI),
     new JFile(getClass().getResource(scalazJarPath).toURI)
   )
@@ -27,7 +27,7 @@ class CompilerFactorySpec extends Specification {
     "have console reporter" in {
       val compiler = CompilerFactory(jars)
 
-      compiler.reporter must beAnInstanceOf[ConsoleReporter]
+      compiler.reporter must beAnInstanceOf[StoreReporter]
     }
   }
 }
