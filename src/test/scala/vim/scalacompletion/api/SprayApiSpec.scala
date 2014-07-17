@@ -29,35 +29,42 @@ class SprayApiSpec extends Specification with Specs2RouteTest
       "call completion" in {
         transformer.transformCompletion(any) returns ""
         Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, anyString)
+          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, any)
         }
       }
 
       "call completion with correct position" in {
         transformer.transformCompletion(any) returns ""
         Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, anyString,  meq(25), meq(14), anyString)
+          there was one(facade).completeAt(anyString, anyString,  meq(25), meq(14), any)
         }
       }
 
       "call completion with correct name" in {
         transformer.transformCompletion(any) returns ""
         Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(meq(path), anyString, anyInt, anyInt, anyString)
+          there was one(facade).completeAt(meq(path), anyString, anyInt, anyInt, any)
         }
       }
 
       "call completion with correct file path" in {
         transformer.transformCompletion(any) returns ""
         Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, meq(tempPath), anyInt, anyInt, anyString)
+          there was one(facade).completeAt(anyString, meq(tempPath), anyInt, anyInt, any)
         }
       }
 
       "call completion with correct prefix" in {
         transformer.transformCompletion(any) returns ""
         Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
-          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, meq("abc"))
+          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, meq(Some("abc")))
+        }
+      }
+
+      "call completion without prefix" in {
+        transformer.transformCompletion(any) returns ""
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
+          there was one(facade).completeAt(anyString, anyString, anyInt, anyInt, meq(None))
         }
       }
 

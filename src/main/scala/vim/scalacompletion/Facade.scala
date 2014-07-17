@@ -10,7 +10,8 @@ trait Facade extends WithLog {
   val membersFilter: MemberInfoType => Boolean
   val membersRanking: MemberInfoType => Int
 
-  def completeAt(name: String, path: String, offset: Int, column: Int, prefix: String): Seq[MemberInfoType] = {
+  def completeAt(name: String, path: String, offset: Int,
+          column: Int, prefix: Option[String]): Seq[MemberInfoType] = {
     val source = sourceFileFactory.createSourceFile(name, path)
     compilerApi.addSources(List(source))
 

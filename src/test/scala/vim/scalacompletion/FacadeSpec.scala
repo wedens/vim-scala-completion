@@ -53,7 +53,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(compilerApi).addSources(any[List[SourceFile]])
       }
@@ -62,7 +62,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(completionTypeDetector).detect(anyString, anyInt)
       }
@@ -71,7 +71,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(compilerApi).typeCompletion(any[scala.reflect.internal.util.Position], any)
       }
@@ -80,7 +80,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Scope
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(compilerApi).scopeCompletion(any[scala.reflect.internal.util.Position], any)
       }
@@ -89,7 +89,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(compilerApi).addSources(any)
         there were noMoreCallsTo(compilerApi)
@@ -99,13 +99,13 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "") must be empty
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must be empty
       }
 
       "call completion type detector with correct parameters" in {
         stubSourceFactory(line = "abc123")
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(completionTypeDetector).detect("abc123", 15)
       }
@@ -113,7 +113,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
       "create source with correct parameters" in {
         stubSourceFactory()
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(sourceFileFactory).createSourceFile(sourceName, sourcePath)
       }
@@ -123,7 +123,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str")
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(membersFilter).apply("str")
       }
@@ -133,7 +133,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str")
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
         there was one(membersRanking).apply("str")
       }
@@ -144,7 +144,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         compilerApi.typeCompletion[String](any, any) returns Seq("str", "str2")
         membersRanking.apply(anyString) returns 1 thenReturns 10
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, "") must_== Seq("str2", "str")
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must_== Seq("str2", "str")
       }
     }
   }
