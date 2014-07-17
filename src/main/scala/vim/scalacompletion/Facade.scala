@@ -1,7 +1,7 @@
 package vim.scalacompletion
 
-trait Facade extends WithLog {
-  type MemberInfoType
+trait Facade[MemberInfoType] extends WithLog {
+  // type MemberInfoType
 
   val compilerApi: Compiler
   val completionTypeDetector: CompletionTypeDetector

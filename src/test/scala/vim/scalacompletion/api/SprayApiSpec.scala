@@ -6,16 +6,18 @@ import spray.testkit.Specs2RouteTest
 import spray.routing.HttpService
 import spray.http.StatusCodes._
 import java.net.URLEncoder
-import vim.scalacompletion.Facade
+import vim.scalacompletion.{Facade, FacadeFactory}
 import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
+import spray.http.FormData
 
 class SprayApiSpec extends Specification with Specs2RouteTest
-  with SprayApi with Mockito {
+  with SprayApi[String] with Mockito {
 
   def actorRefFactory = system
-  val facade = mock[Facade]
-  val transformer = mock[FormatTransformer[facade.MemberInfoType]]
+  var facade = mock[Facade[String]]
+  val facadeFactory = mock[FacadeFactory[String]]
+  val transformer = mock[FormatTransformer[String]]
 
   val path = "/src/main/scala/pkg/Source.scala"
   val tempPath = "/tmp/6157147744291722932"
@@ -81,6 +83,14 @@ class SprayApiSpec extends Specification with Specs2RouteTest
 
         Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
           responseAs[String] must_== transformed
+        }
+      }
+    }
+
+    "POST /init" should {
+      "create facade" in {
+        Post(s"/init", FormData(Map("conf" -> "lalala"))) ~> apiRoutes ~> check {
+          there was one(facadeFactory).createFacade(any)
         }
       }
     }

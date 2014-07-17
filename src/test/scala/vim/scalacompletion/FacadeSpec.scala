@@ -16,7 +16,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
   var membersFilter: String => Boolean = _
   var memberRankCalculator: MemberRankCalculator[String] = _
 
-  var facade: Facade = _
+  var facade: Facade[String] = _
 
   val sourceName = "/src/main/scala/pkg/Source.scala"
   val sourcePath = "/tmp/6157147744291722932"
@@ -35,11 +35,11 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     memberRankCalculator = mock[MemberRankCalculator[String]]
     memberRankCalculator.apply(any, any) returns 0
 
-    facade = new Facade {
-      type MemberInfoType = String
+    facade = new Facade[String] {
+      // type MemberInfoType = String
       val compilerApi = self.compilerApi
       val completionTypeDetector = self.completionTypeDetector
-      val extractor: compilerApi.Member => MemberInfoType = m => m.toString
+      val extractor: compilerApi.Member => String = m => m.toString
       val sourceFileFactory = self.sourceFileFactory
       val membersFilter = self.membersFilter
       val memberRankCalculator = self.memberRankCalculator
