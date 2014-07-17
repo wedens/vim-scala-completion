@@ -82,3 +82,15 @@ fu! s:urlEncode(str)
     let rv = substitute(a:str, rx, '\\=s:encodeChar(submatch(1))', 'g')
     return rv
 endf
+
+function! s:findProjectRoot(lookFor)
+  let pathMaker = '%:p'
+  while (len(expand(pathMaker)) > len(expand(pathMaker.':h')))
+    let pathMaker=pathMaker.':h'
+    let fileToCheck = expand(pathMaker).'/'.a:lookFor
+    if filereadable(fileToCheck) || isdirectory(fileToCheck)
+      return expand(pathMaker)
+    endif
+  endwhile
+  return 0
+endfunction
