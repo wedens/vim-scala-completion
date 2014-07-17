@@ -126,7 +126,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
 
         facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
-        there was one(membersFilter).apply("str")
+        there was two(membersFilter).apply("str")
       }
 
       "rank members" in {
@@ -158,12 +158,12 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must_== Seq("str2", "str")
       }
 
-      "limit result by 10" in {
+      "limit result by 15" in {
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns (1 to 15).map(_.toString)
 
-        facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must have size(10)
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must have size(15)
       }
     }
   }

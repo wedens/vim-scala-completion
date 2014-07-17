@@ -21,8 +21,8 @@ trait Facade extends WithLog {
 
     val completionType = completionTypeDetector.detect(sourceLine, column)
 
-    logg.debug(s"Detected completion type $completionType for line $sourceLine at column: $column")
-    logg.debug(s"Requesting completion $completionType at offset: $offset")
+    logg.debug(s"Detected completion type $completionType for line $sourceLine at column: $column (${if (sourceLine.length >= column) sourceLine.charAt(column) else "<none>"})")
+    logg.debug(s"Requesting completion $completionType at offset: $offset, prefix: ${prefix.getOrElse("<none>")}")
 
     val completionResult = completionType match {
       case CompletionType.Type => compilerApi.typeCompletion(position, extractor)
@@ -30,14 +30,14 @@ trait Facade extends WithLog {
       case _ => Seq.empty
     }
 
+    val filteredMembers = completionResult.view.filter(membersFilter)
+    logg.debug(s"Found ${filteredMembers.length} members")
+
     val rankCalculatorWithPrefix = (memberRankCalculator.apply _).curried(prefix)
-    completionResult
-      .view
-      .filter(membersFilter)
+    val sortedByRank = filteredMembers
       .map(member => (member, rankCalculatorWithPrefix(member)))
       .sortBy { case (_, rank) => -rank }
-      .take(10)
-      .map { case (member, _) => member }
-      .force
+      .take(15)
+    sortedByRank.map { case (member, _) => member }.force
   }
 }
