@@ -10,7 +10,7 @@ trait SourceFileFactory {
 
 class SourceFileFactoryImpl extends SourceFileFactory {
   def createSourceFile(name: String, path: String) = {
-    new BatchSourceFile(path, fileContent(path))
+    new BatchSourceFile(name, fileContent(path))
   }
 
   private def fileContent(path: String) = {
