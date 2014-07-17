@@ -1,14 +1,14 @@
-if exists('g:loaded_scalacompletion')
-  finish
-endif
+" if exists('g:loaded_scalacompletion')
+"   finish
+" endif
 
-let g:loaded_scalacompletion = 1
+" let g:loaded_scalacompletion = 1
 
 fu! scalacompletion#Complete(findstart, base)
   if a:findstart == 1 "findstart = 1 when we need to get the text length
     return s:startOfWord()
   else "findstart = 0 when we need to return the list of completions
-    return s:doCompletion()
+    return s:doCompletion(a:base)
   endif
 endf
 
@@ -21,15 +21,22 @@ fu! s:startOfWord()
   return start
 endfu
 
-fu! s:doCompletion()
+fu! s:doCompletion(prefix)
   let offset = s:cursorOffset()
   let name = s:relativePath()
   let tmpFilePath = s:saveCurrentBufferToTempFile()
-  let column = s:startOfWord()
+  let column = s:startOfWord() - 1
 
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset.'&column='.column.'"'
+  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset.'&column='.column
+  if len(a:prefix) > 0
+    let command = command."&prefix=".s:urlEncode(a:prefix)
+  endif
+  let command = command.'"'
+
   let result = system(command)
+
+  call delete(tmpFilePath)
 
   try
     let completions = eval(result)
