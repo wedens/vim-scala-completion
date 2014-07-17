@@ -5,6 +5,7 @@ import org.specs2.mock._
 import scala.tools.nsc.interactive.Global
 import scala.reflect.internal.util.SourceFile
 import org.specs2.specification.BeforeExample
+import org.mockito.Matchers.{eq => meq}
 
 trait Api extends Global with CompilerApi
 
@@ -13,7 +14,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
   var completionTypeDetector: CompletionTypeDetector = _
   var sourceFileFactory: SourceFileFactory = _
   var membersFilter: String => Boolean = _
-  var membersRanking: String => Int = _
+  var memberRankCalculator: MemberRankCalculator[String] = _
 
   var facade: Facade = _
 
@@ -31,8 +32,8 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     membersFilter = mock[Function1[String, Boolean]]
     membersFilter.apply(any) returns true
 
-    membersRanking = mock[Function1[String, Int]]
-    membersRanking.apply(any) returns 0
+    memberRankCalculator = mock[MemberRankCalculator[String]]
+    memberRankCalculator.apply(any, any) returns 0
 
     facade = new Facade {
       type MemberInfoType = String
@@ -41,7 +42,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
       val extractor: compilerApi.Member => MemberInfoType = m => m.toString
       val sourceFileFactory = self.sourceFileFactory
       val membersFilter = self.membersFilter
-      val membersRanking = self.membersRanking
+      val memberRankCalculator = self.memberRankCalculator
     }
   }
 
@@ -135,16 +136,34 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
 
         facade.completeAt(sourceName, sourcePath, 35, 15, Some(""))
 
-        there was one(membersRanking).apply("str")
+        there was one(memberRankCalculator).apply(any, meq("str"))
+      }
+
+      "rank members with prefix" in {
+        stubSourceFactory()
+        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
+        compilerApi.typeCompletion[String](any, any) returns Seq("str")
+
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some("pfx"))
+
+        there was one(memberRankCalculator).apply(meq(Some("pfx")), any)
       }
 
       "sort members by rank desc" in {
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str", "str2")
-        membersRanking.apply(anyString) returns 1 thenReturns 10
+        memberRankCalculator.apply(any, anyString) returns 1 thenReturns 10
 
         facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must_== Seq("str2", "str")
+      }
+
+      "limit result by 10" in {
+        stubSourceFactory()
+        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
+        compilerApi.typeCompletion[String](any, any) returns (1 to 15).map(_.toString)
+
+        facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must have size(10)
       }
     }
   }

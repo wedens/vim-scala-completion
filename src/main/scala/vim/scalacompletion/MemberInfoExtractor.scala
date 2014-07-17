@@ -2,7 +2,8 @@ package vim.scalacompletion
 
 import scala.tools.nsc.interactive.Global
 
-case class MemberInfo(name: String, fullSignature: String, isConstructor: Boolean = false)
+case class MemberInfo(name: String, fullSignature: String,
+  isConstructor: Boolean = false, isLocal: Boolean = false, isPublic: Boolean = false)
 
 object MemberInfoExtractor {
   def apply(compiler: Global): compiler.Member => MemberInfo = member => {

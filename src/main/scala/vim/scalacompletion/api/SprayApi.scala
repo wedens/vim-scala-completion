@@ -3,7 +3,8 @@ package vim.scalacompletion.api
 import spray.routing.HttpService
 import vim.scalacompletion.{Facade, MemberInfoExtractor,
                     CompilerFactory, SourceFileFactoryImpl, MemberInfo,
-                    CompletionTypeDetector, MemberInfoFilter}
+                    CompletionTypeDetector, MemberInfoFilter, MemberRankCalculator,
+                    MemberRankCalculatorImpl}
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import java.io.{File => JFile}
@@ -20,7 +21,7 @@ class SprayApiActor extends Actor with SprayApi with ActorLogging {
     val completionTypeDetector = new CompletionTypeDetector
     val sourceFileFactory = new SourceFileFactoryImpl
     val membersFilter: MemberInfoType => Boolean = MemberInfoFilter
-    val membersRanking: MemberInfoType => Int = m => 0
+    val memberRankCalculator: MemberRankCalculator[MemberInfoType] = MemberRankCalculatorImpl
   }
 
   val transformer = new VimFormatTransformer
