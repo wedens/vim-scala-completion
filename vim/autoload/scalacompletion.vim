@@ -14,8 +14,9 @@ endf
 
 fu! scalacompletion#Start()
   let config_file_name = 'vim_scala_completion.conf'
-  let project_root = s:findProjectRoot(config_file_name)
-  if project_root == 0
+  let project_root = scalacompletion#FindProjectRoot(config_file_name)
+  echom project_root
+  if project_root == '0'
     echoerr "Can't find project configured for vim-scala-completion! ".config_file_name. " file required in project root."
     return
   endif
@@ -24,7 +25,10 @@ fu! scalacompletion#Start()
   let server_url = "http://localhost:8085/"
   let command = 'curl -s --data "conf='.s:urlEncode(config_path).'" "'.server_url.'init"'
   let result = system(command)
-  echoerr result
+  if result != config_path
+    echoerr result
+  endif
+  echom 'Project started'
 endfu
 
 fu! s:startOfWord()
@@ -98,8 +102,13 @@ fu! s:urlEncode(str)
     return rv
 endf
 
-function! s:findProjectRoot(lookFor)
+fu! scalacompletion#FindProjectRoot(lookFor)
   let pathMaker = '%:p'
+  let pathMaker=pathMaker.':h'
+  let fileToCheck = expand(pathMaker).'/'.a:lookFor
+  if filereadable(fileToCheck)
+    return expand(pathMaker)
+  endif
   while (len(expand(pathMaker)) > len(expand(pathMaker.':h')))
     let pathMaker=pathMaker.':h'
     let fileToCheck = expand(pathMaker).'/'.a:lookFor
@@ -108,4 +117,4 @@ function! s:findProjectRoot(lookFor)
     endif
   endwhile
   return 0
-endfunction
+endf

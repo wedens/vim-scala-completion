@@ -3,11 +3,20 @@ package vim.scalacompletion.api
 import spray.routing.HttpService
 import akka.actor.Actor
 import vim.scalacompletion.{FacadeFactoryImpl, FacadeFactory, MemberInfo, Facade}
+import collection.JavaConversions._
+
+class ConfigLoader {
+  import java.io.{File => JFile}
+  import com.typesafe.config.{Config, ConfigFactory}
+
+  def load(path: String): Config = ConfigFactory.parseFile(new JFile(path))
+}
 
 class SprayApiActor extends Actor with SprayApi[MemberInfo] {
   var facade: Facade[MemberInfo] = _
   val transformer = new VimFormatTransformer
   val facadeFactory: FacadeFactory[MemberInfo] = FacadeFactoryImpl
+  val configLoader = new ConfigLoader
 
   def actorRefFactory = context
   def receive = runRoute(apiRoutes)
@@ -17,6 +26,7 @@ trait SprayApi[T] extends HttpService {
   var facade: Facade[T]
   val transformer: FormatTransformer[T]
   val facadeFactory: FacadeFactory[T]
+  val configLoader: ConfigLoader
 
   val apiRoutes = path("completion") {
     get {
@@ -30,7 +40,9 @@ trait SprayApi[T] extends HttpService {
   path("init") {
     post {
       formField('conf) { conf =>
-        facade = facadeFactory.createFacade(Seq.empty)
+        val config = configLoader.load(conf)
+        val classpath = config.getStringList("vim.scala-completion.classpath")
+        facade = facadeFactory.createFacade(classpath)
         complete(conf)
       }
     }

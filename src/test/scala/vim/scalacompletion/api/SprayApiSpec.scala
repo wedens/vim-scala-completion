@@ -18,6 +18,7 @@ class SprayApiSpec extends Specification with Specs2RouteTest
   var facade = mock[Facade[String]]
   val facadeFactory = mock[FacadeFactory[String]]
   val transformer = mock[FormatTransformer[String]]
+  val configLoader = mock[ConfigLoader]
 
   val path = "/src/main/scala/pkg/Source.scala"
   val tempPath = "/tmp/6157147744291722932"
@@ -88,9 +89,36 @@ class SprayApiSpec extends Specification with Specs2RouteTest
     }
 
     "POST /init" should {
+      import collection.JavaConversions._
+
+      val config = mock[com.typesafe.config.Config]
+      config.getStringList("vim.scala-completion.classpath") returns Seq()
+      configLoader.load(any) returns config
+
+      "read project config file" in {
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
+          there was one(configLoader).load("vim_scala_completion.conf")
+        }
+      }
+
       "create facade" in {
-        Post(s"/init", FormData(Map("conf" -> "lalala"))) ~> apiRoutes ~> check {
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
           there was one(facadeFactory).createFacade(any)
+        }
+      }
+
+      "create facade with classpath from config" in {
+        val classpath = List("lib1.jar", "/tmp/lib2.jar")
+        config.getStringList("vim.scala-completion.classpath") returns classpath
+
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
+          there was one(facadeFactory).createFacade(classpath)
+        }
+      }
+
+      "echo conf" in {
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
+          responseAs[String] must_== "vim_scala_completion.conf"
         }
       }
     }
