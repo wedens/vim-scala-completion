@@ -19,3 +19,4 @@ project/plugins/project/
 
 # vim session
 /Session.vim
+/vim_scala_completion.conf
