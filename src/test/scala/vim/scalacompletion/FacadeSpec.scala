@@ -171,7 +171,11 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     }
 
     "reloading all sources in directories" should {
-      val dirs = Seq(new JFile("/tmp"), new JFile("/opt"))
+      val file1Mock = mock[JFile]
+      file1Mock.getCanonicalPath returns "/tmp"
+      val file2Mock = mock[JFile]
+      file2Mock.getCanonicalPath returns "/opt"
+      val dirs = Seq(file1Mock, file2Mock)
 
       "find sources in directories" in {
         scalaSourcesFinder.findIn(any) returns dirs
