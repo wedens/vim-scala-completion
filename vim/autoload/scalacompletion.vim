@@ -45,7 +45,7 @@ endfu
 
 fu! s:doCompletion(prefix)
   let offset = s:cursorOffset()
-  let name = s:relativePath()
+  let name = s:absolutePath()
   let tmpFilePath = s:saveCurrentBufferToTempFile()
   let column = s:startOfWord() - 1
 
@@ -73,8 +73,8 @@ fu! s:cursorOffset()
   return printf('%d', line2byte(line('.')) + (col('.')-2))
 endfu
 
-fu! s:relativePath()
-  return expand("%")
+fu! s:absolutePath()
+  return expand("%:p")
 endfu
 
 fu! s:saveCurrentBufferToTempFile()
