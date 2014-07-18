@@ -5,9 +5,9 @@
 " let g:loaded_scalacompletion = 1
 
 fu! scalacompletion#Complete(findstart, base)
-  if a:findstart == 1 "findstart = 1 when we need to get the text length
+  if a:findstart == 1
     return s:startOfWord()
-  else "findstart = 0 when we need to return the list of completions
+  else
     return s:doCompletion(a:base)
   endif
 endf
@@ -24,11 +24,14 @@ fu! scalacompletion#Start()
   let config_path = project_root.'/'.config_file_name
   let server_url = "http://localhost:8085/"
   let command = 'curl -s --data "conf='.s:urlEncode(config_path).'" "'.server_url.'init"'
-  let result = system(command)
-  if result != config_path
-    echoerr result
+  let response = system(command)
+  let response_str = eval('"'.response.'"')
+
+  if response_str != config_path
+    echoerr "Unexpected response from server: ".response_str
+    return
   endif
-  echom 'Project started'
+  echom "Project started successfuly"
 endfu
 
 fu! s:startOfWord()
