@@ -6,6 +6,7 @@ import scala.tools.nsc.interactive.Global
 import scala.reflect.internal.util.SourceFile
 import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
+import java.io.{File => JFile}
 
 trait Api extends Global with CompilerApi
 
@@ -15,6 +16,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
   var sourceFileFactory: SourceFileFactory = _
   var membersFilter: String => Boolean = _
   var memberRankCalculator: MemberRankCalculator[String] = _
+  var scalaSourcesFinder: ScalaSourcesFinder = _
 
   var facade: Facade[String] = _
 
@@ -28,6 +30,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
 
     completionTypeDetector = mock[CompletionTypeDetector]
     sourceFileFactory = mock[SourceFileFactory]
+    scalaSourcesFinder = mock[ScalaSourcesFinder]
 
     membersFilter = mock[Function1[String, Boolean]]
     membersFilter.apply(any) returns true
@@ -36,13 +39,13 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     memberRankCalculator.apply(any, any) returns 0
 
     facade = new Facade[String] {
-      // type MemberInfoType = String
       val compilerApi = self.compilerApi
       val completionTypeDetector = self.completionTypeDetector
       val extractor: compilerApi.Member => String = m => m.toString
       val sourceFileFactory = self.sourceFileFactory
       val membersFilter = self.membersFilter
       val memberRankCalculator = self.memberRankCalculator
+      val scalaSourcesFinder = self.scalaSourcesFinder
     }
   }
 
@@ -164,6 +167,40 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         compilerApi.typeCompletion[String](any, any) returns (1 to 15).map(_.toString)
 
         facade.completeAt(sourceName, sourcePath, 35, 15, Some("")) must have size(15)
+      }
+    }
+
+    "reloading all sources in directories" should {
+      val dirs = Seq(new JFile("/tmp"), new JFile("/opt"))
+
+      "find sources in directories" in {
+        scalaSourcesFinder.findIn(any) returns dirs
+
+        facade.reloadAllSourcesInDirs(dirs)
+
+        there was one(scalaSourcesFinder).findIn(dirs)
+      }
+
+      "create compiler's source files for found sources" in {
+        scalaSourcesFinder.findIn(any) returns dirs
+
+        facade.reloadAllSourcesInDirs(dirs)
+
+        there was one(sourceFileFactory).createSourceFile("/tmp") andThen one(sourceFileFactory).createSourceFile("/opt")
+      }
+
+      "ask compiler to reload sources" in {
+        scalaSourcesFinder.findIn(any) returns dirs
+
+        facade.reloadAllSourcesInDirs(dirs)
+
+        there was one(compilerApi).addSources(any)
+      }
+
+      "return reloaded sources" in {
+        scalaSourcesFinder.findIn(any) returns dirs
+
+        facade.reloadAllSourcesInDirs(dirs) must_== dirs
       }
     }
   }

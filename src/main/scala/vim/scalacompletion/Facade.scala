@@ -1,14 +1,15 @@
 package vim.scalacompletion
 
-trait Facade[MemberInfoType] extends WithLog {
-  // type MemberInfoType
+import java.io.{File => JFile}
 
+trait Facade[MemberInfoType] extends WithLog {
   val compilerApi: Compiler
   val completionTypeDetector: CompletionTypeDetector
   val extractor: compilerApi.Member => MemberInfoType
   val sourceFileFactory: SourceFileFactory
   val membersFilter: MemberInfoType => Boolean
   val memberRankCalculator: MemberRankCalculator[MemberInfoType]
+  val scalaSourcesFinder: ScalaSourcesFinder
 
   def completeAt(name: String, path: String, offset: Int,
           column: Int, prefix: Option[String]): Seq[MemberInfoType] = {
@@ -39,5 +40,15 @@ trait Facade[MemberInfoType] extends WithLog {
       .sortBy { case (_, rank) => -rank }
       .take(15)
     sortedByRank.map { case (member, _) => member }.force
+  }
+
+  def reloadAllSourcesInDirs(dirs: Seq[JFile]): Seq[JFile] = {
+    val sourcesJFiles = scalaSourcesFinder.findIn(dirs)
+    val sources = sourcesJFiles.map { file =>
+      val canonicalPath = file.getCanonicalPath
+      sourceFileFactory.createSourceFile(canonicalPath)
+    }.toList
+    compilerApi.addSources(sources)
+    sourcesJFiles
   }
 }

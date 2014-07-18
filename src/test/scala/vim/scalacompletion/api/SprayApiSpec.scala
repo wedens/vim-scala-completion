@@ -121,6 +121,8 @@ class SprayApiSpec extends Specification with Specs2RouteTest
           responseAs[String] must_== "vim_scala_completion.conf"
         }
       }
+
+      "read sources directories from config" in pending
     }
   }
 }

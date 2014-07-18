@@ -15,6 +15,7 @@ object FacadeFactoryImpl extends FacadeFactory[MemberInfo] {
         val sourceFileFactory = new SourceFileFactoryImpl
         val membersFilter: MemberInfo => Boolean = MemberInfoFilter
         val memberRankCalculator: MemberRankCalculator[MemberInfo] = MemberRankCalculatorImpl
+        val scalaSourcesFinder: ScalaSourcesFinder = new ScalaSourcesFinder
       }
   }
 }
