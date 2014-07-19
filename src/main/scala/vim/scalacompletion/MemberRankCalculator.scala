@@ -14,6 +14,10 @@ object MemberRankCalculatorImpl extends MemberRankCalculator[MemberInfo] {
       rank += 5
     }
 
+    if (!member.isFromRootObjects) {
+       rank += 10
+    }
+
     rank += prefix.filter(member.name.startsWith(_)).map(_ => 10) getOrElse 0
 
     rank

@@ -18,6 +18,10 @@ class MemberRankCalculatorImplImplSpec extends Specification {
       calculatorWithNonePrefix(MemberInfo("a", "", isPublic = true)) must_== 5
     }
 
+    "add 10 if member is not inhereted from Any, Object etc" in {
+      calculatorWithNonePrefix(MemberInfo("a", "", isFromRootObjects = false)) must_== 10
+    }
+
     "add 10 if member name starts with prefix" in {
       MemberRankCalculatorImpl(Some("qwe"), MemberInfo("qwerty", "")) must_== 10
     }
