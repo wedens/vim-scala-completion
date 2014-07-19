@@ -42,13 +42,12 @@ trait Facade[MemberInfoType] extends WithLog {
     sortedByRank.map { case (member, _) => member }.force
   }
 
-  def reloadAllSourcesInDirs(dirs: Seq[JFile]): Seq[JFile] = {
-    val sourcesJFiles = scalaSourcesFinder.findIn(dirs)
+  def reloadAllSourcesInDirs(dirs: List[String]) = {
+    val sourcesJFiles = scalaSourcesFinder.findIn(dirs.map(new JFile(_)))
     val sources = sourcesJFiles.map { file =>
       val canonicalPath = file.getCanonicalPath
       sourceFileFactory.createSourceFile(canonicalPath)
     }.toList
     compilerApi.addSources(sources)
-    sourcesJFiles
   }
 }

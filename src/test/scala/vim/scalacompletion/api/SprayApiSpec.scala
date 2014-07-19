@@ -7,12 +7,13 @@ import spray.routing.HttpService
 import spray.http.StatusCodes._
 import java.net.URLEncoder
 import vim.scalacompletion.{Facade, FacadeFactory}
-import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
 import spray.http.FormData
 
-class SprayApiSpec extends Specification with Specs2RouteTest
-  with SprayApi[String] with Mockito {
+class SprayApiSpec extends Specification
+                   with Specs2RouteTest
+                   with SprayApi[String]
+                   with Mockito {
 
   def actorRefFactory = system
   var facade = mock[Facade[String]]
@@ -93,13 +94,9 @@ class SprayApiSpec extends Specification with Specs2RouteTest
 
       val config = mock[com.typesafe.config.Config]
       config.getStringList("vim.scala-completion.classpath") returns Seq()
+      config.getStringList("vim.scala-completion.src-directories") returns Seq()
       configLoader.load(any) returns config
-
-      "read project config file" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          there was one(configLoader).load("vim_scala_completion.conf")
-        }
-      }
+      facadeFactory.createFacade(any) returns facade
 
       "create facade" in {
         Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
@@ -122,7 +119,14 @@ class SprayApiSpec extends Specification with Specs2RouteTest
         }
       }
 
-      "read sources directories from config" in pending
+      "reload sources in directories" in {
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
+          val srcDirs = List("/tmp", "/opt")
+          config.getStringList("vim.scala-completion.src-directories") returns srcDirs
+
+          there was one(facade).reloadAllSourcesInDirs(any)
+        }
+      }
     }
   }
 }

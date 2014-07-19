@@ -42,10 +42,11 @@ trait SprayApi[T] extends HttpService {
       formField('conf) { conf =>
         val config = configLoader.load(conf)
         val classpath = config.getStringList("vim.scala-completion.classpath")
+        val sourceDirs = config.getStringList("vim.scala-completion.src-directories").toList
         facade = facadeFactory.createFacade(classpath)
+        facade.reloadAllSourcesInDirs(sourceDirs)
         complete(conf)
       }
     }
   }
-
 }

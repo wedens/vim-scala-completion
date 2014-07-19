@@ -7,11 +7,11 @@ class ScalaSourcesFinder {
 
   private val scalaSourceRegex = """.*\.scala$""".r
 
-  def findIn(directories: Seq[JFile]): Seq[JFile] = {
+  def findIn(directories: List[JFile]): Seq[JFile] = {
     findSourcesRecursive(directories)
   }
 
-  private def findSourcesRecursive(directories: Seq[JFile], sources: Seq[JFile] = Seq.empty): Seq[JFile] = {
+  private def findSourcesRecursive(directories: List[JFile], sources: Seq[JFile] = Seq.empty): Seq[JFile] = {
     directories match {
       case dir :: tail =>
         val (dirsInDir, filesInDir) = dir.listFiles.partition(_.isDirectory)

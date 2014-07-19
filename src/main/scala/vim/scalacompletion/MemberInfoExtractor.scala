@@ -11,7 +11,7 @@ object MemberInfoExtractor {
     val name = member.sym.nameString
     val fullSignature = member.sym.defStringSeenAs(member.tpe)
     val isConstructor = member.sym.isConstructor
-    val isLocal = member.sym.hasFlag(Flags.LOCAL)
+    val isLocal = member.sym.isLocalToBlock
     val isPublic = member.sym.isPublic
     MemberInfo(name, fullSignature, isConstructor)
   }

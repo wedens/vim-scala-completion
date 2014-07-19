@@ -172,39 +172,34 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
 
     "reloading all sources in directories" should {
       val file1Mock = mock[JFile]
-      file1Mock.getCanonicalPath returns "/tmp"
+      file1Mock.getCanonicalPath returns "/tmp/file1.scala"
       val file2Mock = mock[JFile]
-      file2Mock.getCanonicalPath returns "/opt"
-      val dirs = Seq(file1Mock, file2Mock)
+      file2Mock.getCanonicalPath returns "/opt/file2.scala"
+      val dirs = List("/tmp", "/opt")
+      val files = Seq(file1Mock, file2Mock)
 
       "find sources in directories" in {
-        scalaSourcesFinder.findIn(any) returns dirs
+        scalaSourcesFinder.findIn(any) returns files
 
         facade.reloadAllSourcesInDirs(dirs)
 
-        there was one(scalaSourcesFinder).findIn(dirs)
+        there was one(scalaSourcesFinder).findIn(List(new JFile("/tmp"), new JFile("/opt")))
       }
 
       "create compiler's source files for found sources" in {
-        scalaSourcesFinder.findIn(any) returns dirs
+        scalaSourcesFinder.findIn(any) returns files
 
         facade.reloadAllSourcesInDirs(dirs)
 
-        there was one(sourceFileFactory).createSourceFile("/tmp") andThen one(sourceFileFactory).createSourceFile("/opt")
+        there was one(sourceFileFactory).createSourceFile("/tmp/file1.scala") andThen one(sourceFileFactory).createSourceFile("/opt/file2.scala")
       }
 
       "ask compiler to reload sources" in {
-        scalaSourcesFinder.findIn(any) returns dirs
+        scalaSourcesFinder.findIn(any) returns files
 
         facade.reloadAllSourcesInDirs(dirs)
 
         there was one(compilerApi).addSources(any)
-      }
-
-      "return reloaded sources" in {
-        scalaSourcesFinder.findIn(any) returns dirs
-
-        facade.reloadAllSourcesInDirs(dirs) must_== dirs
       }
     }
   }
