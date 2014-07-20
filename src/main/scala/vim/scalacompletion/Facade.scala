@@ -18,16 +18,19 @@ trait Facade[MemberInfoType] extends WithLog {
 
     val lineIdx = source.offsetToLine(offset)
     val sourceLine = source.lineToString(lineIdx)
-    val position = source.position(offset)
-
     val completionType = completionTypeDetector.detect(sourceLine, column)
 
     val charAtCompletionPos = if (sourceLine.length >= column) "(char: " + sourceLine.charAt(column) + ")" else ""
     logg.debug(s"Requested completion $completionType at offset: $offset, column: $column $charAtCompletionPos ${prefix.map(p => s" with prefix: $p)") getOrElse ""}")
 
     val completionResult = completionType match {
-      case CompletionType.Type => compilerApi.typeCompletion(position, extractor)
-      case CompletionType.Scope => compilerApi.scopeCompletion(position, extractor)
+      case CompletionType.Type =>
+        val offsetBeforeDotOrSpace = offset - 1
+        val position = source.position(offsetBeforeDotOrSpace)
+        compilerApi.typeCompletion(position, extractor)
+      case CompletionType.Scope =>
+        val position = source.position(offset)
+        compilerApi.scopeCompletion(position, extractor)
       case _ => Seq.empty
     }
 

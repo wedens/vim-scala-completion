@@ -13,7 +13,15 @@ class CompilerApiSpec extends Specification {
   def jars = Seq(
     new JFile(getClass().getResource(rtJarPath).toURI),
     new JFile(getClass().getResource(scalaLibJarPath).toURI),
-    new JFile(getClass().getResource(scalazJarPath).toURI)
+    new JFile(getClass().getResource(scalazJarPath).toURI),
+    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-routing_2.11/bundles/spray-routing_2.11-1.3.1.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/com.chuusai/shapeless_2.11/jars/shapeless_2.11-1.2.4.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/com.typesafe.akka/akka-actor_2.11/jars/akka-actor_2.11-2.3.4.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-can_2.11/bundles/spray-can_2.11-1.3.1.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-io_2.11/bundles/spray-io_2.11-1.3.1.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-util_2.11/bundles/spray-util_2.11-1.3.1.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-http_2.11/bundles/spray-http_2.11-1.3.1.jar"),
+    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-httpx_2.11/bundles/spray-httpx_2.11-1.3.1.jar")
   )
 
   def createSource(code: String) = new BatchSourceFile("test", code)
@@ -45,7 +53,7 @@ class CompilerApiSpec extends Specification {
     "do type completion" in {
       val (position, source) = completionExample {
         """val str = "some string"
-        str.$
+        str$.
         """
       }
 
@@ -72,9 +80,9 @@ class CompilerApiSpec extends Specification {
 
     "do type completion inside of method call" in {
       val (position, source) = completionExample {
-        """def add(x: Int, y: Int) = x + y
-        val list = Seq(1, 2)
-        add(list.$
+        """val list = Seq(1,2)
+        def add(x: Int, y: Int): Int = x + y
+        add(list$.)
         """
       }
 
@@ -82,7 +90,23 @@ class CompilerApiSpec extends Specification {
       compiler.addSources(List(source))
       val nameExtractor = createNameExtractorFor(compiler)
 
-      compiler.typeCompletion(position, nameExtractor) must contain("foldLeft")
+      compiler.typeCompletion(position, nameExtractor) must contain("head")
+    }
+
+    "do type completion inside of method call with 2 params by name" in {
+      val (position, source) = completionExample {
+        """
+        implicit class OptionW[T](opt: Option[T]) {
+          def cata[A](some: T => A, none: A) = opt.map(some) getOrElse none
+        }
+        Option(List(1,2)).cata(_$.)"""
+      }
+
+      val compiler = CompilerFactory(jars)
+      compiler.addSources(List(source))
+      val nameExtractor = createNameExtractorFor(compiler)
+
+      compiler.typeCompletion(position, nameExtractor) must contain("head")
     }
 
     "remove sources" in {
