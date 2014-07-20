@@ -13,6 +13,7 @@ object CompilerFactory extends WithLog {
     settings.classpath.value = jars.map(_.getAbsolutePath).mkString("", sep, "")
 
     val reporter = new StoreReporter()
+    // val reporter = new ConsoleReporter(settings)
     val compiler = new Compiler(settings, reporter)
     if (logg.isDebugEnabled)
       logg.debug(s"Created compiler with classpath: ${settings.classpath.value}")
