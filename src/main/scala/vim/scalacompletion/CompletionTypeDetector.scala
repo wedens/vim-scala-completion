@@ -27,6 +27,7 @@ class CompletionTypeDetector {
           withoutSpaces.headOption match {
             case None => CompletionType.Scope
             case Some(';') => CompletionType.Scope
+            case Some(_) if withoutSpaces.startsWith("case".reverse) => CompletionType.Scope
             case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
             case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
             case _ => CompletionType.Scope

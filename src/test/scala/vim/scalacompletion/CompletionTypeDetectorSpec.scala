@@ -84,6 +84,12 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.indexOf("=>") - 1) must_== CompletionType.Scope
     }
 
+    "detect scope after case statement" in {
+      val line = "  case   =>"
+
+      detector.detect(line, line.indexOf("=>") - 1) must_== CompletionType.Scope
+    }
+
     "not detect completion after dot inside string" in {
        val line = "val str = \"some. string\""
 
