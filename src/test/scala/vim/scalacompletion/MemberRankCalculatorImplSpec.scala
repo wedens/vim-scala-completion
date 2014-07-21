@@ -13,7 +13,7 @@ class MemberRankCalculatorImplSpec extends Specification {
     }
 
     "add 20 if member is local" in {
-      calculatorWithNonePrefix(MemberInfo("a", "", isLocal = true)) must_== 20
+      calculatorWithNonePrefix(MemberInfo("a", "", isLocal = true)) must_== base + 20
     }
 
     "add 5 if member is public" in {
