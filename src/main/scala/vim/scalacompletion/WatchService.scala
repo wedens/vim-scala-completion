@@ -2,14 +2,19 @@ package vim.scalacompletion
 
 import java.nio.file.StandardWatchEventKinds._
 import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file._
+import java.nio.file.{FileSystems, SimpleFileVisitor,
+                      FileVisitResult, Path, Files}
 import collection.JavaConversions._
 import java.nio.file.WatchEvent.Modifier
 import akka.actor.ActorRef
 import FileSystemEvents._
 
-class WatchService(observerActor: ActorRef) extends Runnable with WithLog {
+
+class WatchService extends Runnable with WithLog {
   private val watchService = FileSystems.getDefault.newWatchService()
+  private var observerActors: Seq[ActorRef] = Seq.empty
+
+  def addObserver(actor: ActorRef): Unit = observerActors = observerActors :+ actor
 
   def watchRecursively(root: Path) {
     watch(root)
@@ -19,6 +24,10 @@ class WatchService(observerActor: ActorRef) extends Runnable with WithLog {
         FileVisitResult.CONTINUE
       }
     })
+  }
+
+  private def notify(msg: FileSystemEvent): Unit = {
+    observerActors.foreach(_ ! msg)
   }
 
   private def watch(path: Path) =
@@ -34,9 +43,9 @@ class WatchService(observerActor: ActorRef) extends Runnable with WithLog {
           val pathAsFile = path.toFile
           event.kind() match {
             case ENTRY_CREATE if pathAsFile.isDirectory => watchRecursively(path)
-            case ENTRY_CREATE => observerActor ! Created(pathAsFile)
-            case ENTRY_DELETE => observerActor ! Deleted(pathAsFile)
-            case ENTRY_MODIFY => observerActor ! Modifyed(pathAsFile)
+            case ENTRY_CREATE => notify(Created(pathAsFile))
+            case ENTRY_DELETE => notify(Deleted(pathAsFile))
+            case ENTRY_MODIFY => notify(Modifyed(pathAsFile))
             case x => logg.warn(s"Unknown event kind: $x at path $path")
           }
         }
