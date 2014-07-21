@@ -1,8 +1,17 @@
 package vim.scalacompletion
 
 import java.io.{File => JFile}
+import akka.actor.Actor
 
-trait Facade[MemberInfoType] extends WithLog {
+object FacadeActor {
+  case class CompleteAt(name: String, path: String,
+    offset: Int, column: Int, prefix: Option[String])
+  case class CompletionResult[T](members: Seq[T])
+}
+
+trait FacadeActor[MemberInfoType] extends Actor with WithLog {
+  import FacadeActor._
+
   val compilerApi: Compiler
   val completionTypeDetector: CompletionTypeDetector
   val extractor: compilerApi.Member => MemberInfoType
@@ -10,6 +19,11 @@ trait Facade[MemberInfoType] extends WithLog {
   val membersFilter: MemberFilter[MemberInfoType]
   val memberRankCalculator: MemberRankCalculator[MemberInfoType]
   val scalaSourcesFinder: ScalaSourcesFinder
+
+  def receive = {
+    case CompleteAt(name, path, offset, column, prefix) =>
+      sender ! CompletionResult(completeAt(name, path, offset, column, prefix))
+  }
 
   def completeAt(name: String, path: String, offset: Int,
           column: Int, prefix: Option[String]): Seq[MemberInfoType] = {

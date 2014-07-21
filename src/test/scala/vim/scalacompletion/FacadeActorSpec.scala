@@ -8,9 +8,11 @@ import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
 import java.io.{File => JFile}
 
-trait Api extends Global with CompilerApi
+import akka.actor._
+import akka.pattern.ask
+import akka.testkit.{ TestActorRef, TestKit }
 
-class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
+class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with SpecificationLike with Mockito with BeforeExample { selfSpec =>
   var compilerApi: Compiler = _
   var completionTypeDetector: CompletionTypeDetector = _
   var sourceFileFactory: SourceFileFactory = _
@@ -18,7 +20,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
   var memberRankCalculator: MemberRankCalculator[String] = _
   var scalaSourcesFinder: ScalaSourcesFinder = _
 
-  var facade: Facade[String] = _
+  var facade: TestActorRef[FacadeActor[String]] = _
 
   val sourceName = "/src/main/scala/pkg/Source.scala"
   val sourcePath = "/tmp/6157147744291722932"
@@ -40,15 +42,15 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     memberRankCalculator = mock[MemberRankCalculator[String]]
     memberRankCalculator.apply(any, any) returns 0
 
-    facade = new Facade[String] {
-      val compilerApi = self.compilerApi
-      val completionTypeDetector = self.completionTypeDetector
+    facade = TestActorRef(new FacadeActor[String] {
+      val compilerApi = selfSpec.compilerApi
+      val completionTypeDetector = selfSpec.completionTypeDetector
       val extractor: compilerApi.Member => String = m => m.toString
-      val sourceFileFactory = self.sourceFileFactory
-      val membersFilter = self.membersFilter
-      val memberRankCalculator = self.memberRankCalculator
-      val scalaSourcesFinder = self.scalaSourcesFinder
-    }
+      val sourceFileFactory = selfSpec.sourceFileFactory
+      val membersFilter = selfSpec.membersFilter
+      val memberRankCalculator = selfSpec.memberRankCalculator
+      val scalaSourcesFinder = selfSpec.scalaSourcesFinder
+    })
   }
 
   sequential
@@ -59,7 +61,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).addSources(any[List[SourceFile]])
       }
@@ -68,7 +70,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(completionTypeDetector).detect(anyString, anyInt)
       }
@@ -77,7 +79,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).typeCompletion(any[scala.reflect.internal.util.Position], any)
       }
@@ -86,7 +88,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Scope
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).scopeCompletion(any[scala.reflect.internal.util.Position], any)
       }
@@ -95,7 +97,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).addSources(any)
         there were noMoreCallsTo(compilerApi)

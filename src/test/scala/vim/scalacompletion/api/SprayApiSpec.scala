@@ -6,7 +6,7 @@ import spray.testkit.Specs2RouteTest
 import spray.routing.HttpService
 import spray.http.StatusCodes._
 import java.net.URLEncoder
-import vim.scalacompletion.{Facade, FacadeFactory}
+import vim.scalacompletion.{FacadeActor, FacadeFactory}
 import org.mockito.Matchers.{eq => meq}
 import spray.http.FormData
 
@@ -16,7 +16,7 @@ class SprayApiSpec extends Specification
                    with Mockito {
 
   def actorRefFactory = system
-  var facade = mock[Facade[String]]
+  var facade = mock[FacadeActor[String]]
   val facadeFactory = mock[FacadeFactory[String]]
   val transformer = mock[FormatTransformer[String]]
   val configLoader = mock[ConfigLoader]

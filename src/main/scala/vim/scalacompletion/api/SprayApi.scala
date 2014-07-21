@@ -2,7 +2,7 @@ package vim.scalacompletion.api
 
 import spray.routing.HttpService
 import akka.actor.Actor
-import vim.scalacompletion.{FacadeFactoryImpl, FacadeFactory, MemberInfo, Facade}
+import vim.scalacompletion.{FacadeFactoryImpl, FacadeFactory, MemberInfo, FacadeActor}
 import collection.JavaConversions._
 
 class ConfigLoader {
@@ -13,7 +13,7 @@ class ConfigLoader {
 }
 
 class SprayApiActor extends Actor with SprayApi[MemberInfo] {
-  var facade: Facade[MemberInfo] = _
+  var facade: FacadeActor[MemberInfo] = _
   val transformer = new VimFormatTransformer
   val facadeFactory: FacadeFactory[MemberInfo] = FacadeFactoryImpl
   val configLoader = new ConfigLoader
@@ -23,7 +23,7 @@ class SprayApiActor extends Actor with SprayApi[MemberInfo] {
 }
 
 trait SprayApi[T] extends HttpService {
-  var facade: Facade[T]
+  var facade: FacadeActor[T]
   val transformer: FormatTransformer[T]
   val facadeFactory: FacadeFactory[T]
   val configLoader: ConfigLoader
