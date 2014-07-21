@@ -9,13 +9,13 @@ trait FacadeFactory[T] {
 object FacadeFactoryImpl extends FacadeFactory[MemberInfo] {
   def createFacade(classpath: Seq[String]): Facade[MemberInfo] = {
     new Facade[MemberInfo] {
-        val compilerApi = CompilerFactory(classpath.map(new JFile(_)))
-        val extractor = MemberInfoExtractor(compilerApi)
-        val completionTypeDetector = new CompletionTypeDetector
-        val sourceFileFactory = new SourceFileFactoryImpl
-        val membersFilter: MemberInfo => Boolean = MemberInfoFilter
-        val memberRankCalculator: MemberRankCalculator[MemberInfo] = MemberRankCalculatorImpl
-        val scalaSourcesFinder: ScalaSourcesFinder = new ScalaSourcesFinder
-      }
+      val compilerApi = CompilerFactory(classpath.map(new JFile(_)))
+      val extractor = MemberInfoExtractor(compilerApi)
+      val completionTypeDetector = new CompletionTypeDetector
+      val sourceFileFactory = new SourceFileFactoryImpl
+      val membersFilter: MemberFilter[MemberInfo] = MemberInfoFilter
+      val memberRankCalculator: MemberRankCalculator[MemberInfo] = MemberRankCalculatorImpl
+      val scalaSourcesFinder: ScalaSourcesFinder = new ScalaSourcesFinder
+    }
   }
 }

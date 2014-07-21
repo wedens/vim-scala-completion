@@ -7,7 +7,7 @@ trait Facade[MemberInfoType] extends WithLog {
   val completionTypeDetector: CompletionTypeDetector
   val extractor: compilerApi.Member => MemberInfoType
   val sourceFileFactory: SourceFileFactory
-  val membersFilter: MemberInfoType => Boolean
+  val membersFilter: MemberFilter[MemberInfoType]
   val memberRankCalculator: MemberRankCalculator[MemberInfoType]
   val scalaSourcesFinder: ScalaSourcesFinder
 
@@ -34,7 +34,8 @@ trait Facade[MemberInfoType] extends WithLog {
       case _ => Seq.empty
     }
 
-    val filteredMembers = completionResult.view.filter(membersFilter)
+    val membersFilterWithPrefix = (membersFilter.apply _).curried(prefix)
+    val filteredMembers = completionResult.view.filter(membersFilterWithPrefix)
     logg.debug(s"Found ${completionResult.length} members. ${filteredMembers.length} filtered.")
 
     val rankCalculatorWithPrefix = (memberRankCalculator.apply _).curried(prefix)

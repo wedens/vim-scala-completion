@@ -14,7 +14,7 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
   var compilerApi: Compiler = _
   var completionTypeDetector: CompletionTypeDetector = _
   var sourceFileFactory: SourceFileFactory = _
-  var membersFilter: String => Boolean = _
+  var membersFilter: MemberFilter[String] = _
   var memberRankCalculator: MemberRankCalculator[String] = _
   var scalaSourcesFinder: ScalaSourcesFinder = _
 
@@ -34,8 +34,8 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
     sourceFileFactory = mock[SourceFileFactory]
     scalaSourcesFinder = mock[ScalaSourcesFinder]
 
-    membersFilter = mock[Function1[String, Boolean]]
-    membersFilter.apply(any) returns true
+    membersFilter = mock[MemberFilter[String]]
+    membersFilter.apply(any, any) returns true
 
     memberRankCalculator = mock[MemberRankCalculator[String]]
     memberRankCalculator.apply(any, any) returns 0
@@ -147,9 +147,9 @@ class FacadeSpec extends Specification with Mockito with BeforeExample { self =>
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str")
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade.completeAt(sourceName, sourcePath, offset, column, Some("pfx"))
 
-        there was two(membersFilter).apply("str")
+        there was two(membersFilter).apply(Some("pfx"), "str")
       }
 
       "rank members" in {
