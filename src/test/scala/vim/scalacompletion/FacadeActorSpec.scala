@@ -2,17 +2,27 @@ package vim.scalacompletion
 
 import org.specs2.mutable._
 import org.specs2.mock._
+import org.specs2.time.NoTimeConversions
 import scala.tools.nsc.interactive.Global
 import scala.reflect.internal.util.SourceFile
+import scala.concurrent.duration._
 import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
 import java.io.{File => JFile}
-
 import akka.actor._
 import akka.pattern.ask
 import akka.testkit.{ TestActorRef, TestKit }
+import akka.util.Timeout
+import scala.util.{Try, Success, Failure}
+import FacadeActor._
 
-class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with SpecificationLike with Mockito with BeforeExample { selfSpec =>
+
+class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
+                      with SpecificationLike
+                      with Mockito
+                      with BeforeExample
+                      with NoTimeConversions { selfSpec =>
+
   var compilerApi: Compiler = _
   var completionTypeDetector: CompletionTypeDetector = _
   var sourceFileFactory: SourceFileFactory = _
@@ -22,6 +32,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
 
   var facade: TestActorRef[FacadeActor[String]] = _
 
+  implicit val timeout = Timeout(5 seconds)
   val sourceName = "/src/main/scala/pkg/Source.scala"
   val sourcePath = "/tmp/6157147744291722932"
   val offset = 35
@@ -61,7 +72,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).addSources(any[List[SourceFile]])
       }
@@ -70,7 +81,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(completionTypeDetector).detect(anyString, anyInt)
       }
@@ -79,7 +90,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
 
-        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).typeCompletion(any[scala.reflect.internal.util.Position], any)
       }
@@ -88,7 +99,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Scope
 
-        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).scopeCompletion(any[scala.reflect.internal.util.Position], any)
       }
@@ -97,7 +108,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(compilerApi).addSources(any)
         there were noMoreCallsTo(compilerApi)
@@ -107,13 +118,16 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some("")) must be empty
+        val future = facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+
+        val Success(result: CompletionResult[String]) = future.mapTo[CompletionResult[String]].value.get
+        result.members must be empty
       }
 
       "call completion type detector with correct parameters" in {
         stubSourceFactory(line = "abc123")
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(completionTypeDetector).detect("abc123", 15)
       }
@@ -121,7 +135,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
       "create source with correct parameters" in {
         stubSourceFactory()
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(sourceFileFactory).createSourceFile(sourceName, sourcePath)
       }
@@ -130,7 +144,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         val source = stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Scope
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(source).position(offset)
       }
@@ -139,7 +153,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         val source = stubSourceFactory()
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(source).position(offset - 1)
       }
@@ -149,7 +163,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str")
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some("pfx"))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some("pfx"))
 
         there was two(membersFilter).apply(Some("pfx"), "str")
       }
@@ -159,7 +173,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str")
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some(""))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
         there was one(memberRankCalculator).apply(any, meq("str"))
       }
@@ -169,7 +183,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns Seq("str")
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some("pfx"))
+        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some("pfx"))
 
         there was one(memberRankCalculator).apply(meq(Some("pfx")), any)
       }
@@ -180,7 +194,10 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         compilerApi.typeCompletion[String](any, any) returns Seq("str", "str2")
         memberRankCalculator.apply(any, anyString) returns 1 thenReturns 10
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some("")) must_== Seq("str2", "str")
+        val future = facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+
+        val Success(result: CompletionResult[String]) = future.mapTo[CompletionResult[String]].value.get
+        result.members must_== Seq("str2", "str")
       }
 
       "limit result by 15" in {
@@ -188,7 +205,10 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
         completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
         compilerApi.typeCompletion[String](any, any) returns (1 to 15).map(_.toString)
 
-        facade.completeAt(sourceName, sourcePath, offset, column, Some("")) must have size(15)
+        val future = facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+
+        val Success(result: CompletionResult[String]) = future.mapTo[CompletionResult[String]].value.get
+        result.members must have size(15)
       }
     }
 
@@ -203,7 +223,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
       "find sources in directories" in {
         scalaSourcesFinder.findIn(any) returns files
 
-        facade.reloadAllSourcesInDirs(dirs)
+        facade ! ReloadSourcesInDirs(dirs)
 
         there was one(scalaSourcesFinder).findIn(List(new JFile("/tmp"), new JFile("/opt")))
       }
@@ -211,7 +231,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
       "create compiler's source files for found sources" in {
         scalaSourcesFinder.findIn(any) returns files
 
-        facade.reloadAllSourcesInDirs(dirs)
+        facade ! ReloadSourcesInDirs(dirs)
 
         there was one(sourceFileFactory).createSourceFile("/tmp/file1.scala") andThen one(sourceFileFactory).createSourceFile("/opt/file2.scala")
       }
@@ -219,7 +239,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec")) with Specificat
       "ask compiler to reload sources" in {
         scalaSourcesFinder.findIn(any) returns files
 
-        facade.reloadAllSourcesInDirs(dirs)
+        facade ! ReloadSourcesInDirs(dirs)
 
         there was one(compilerApi).addSources(any)
       }

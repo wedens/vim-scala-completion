@@ -7,6 +7,8 @@ object FacadeActor {
   case class CompleteAt(name: String, path: String,
     offset: Int, column: Int, prefix: Option[String])
   case class CompletionResult[T](members: Seq[T])
+
+  case class ReloadSourcesInDirs(dirs: Seq[String])
 }
 
 trait FacadeActor[MemberInfoType] extends Actor with WithLog {
@@ -23,6 +25,8 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
   def receive = {
     case CompleteAt(name, path, offset, column, prefix) =>
       sender ! CompletionResult(completeAt(name, path, offset, column, prefix))
+    case ReloadSourcesInDirs(dirs) =>
+      reloadAllSourcesInDirs(dirs)
   }
 
   def completeAt(name: String, path: String, offset: Int,
@@ -60,8 +64,8 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
     sortedByRank.map { case (member, _) => member }.force
   }
 
-  def reloadAllSourcesInDirs(dirs: List[String]) = {
-    val sourcesJFiles = scalaSourcesFinder.findIn(dirs.map(new JFile(_)))
+  def reloadAllSourcesInDirs(dirs: Seq[String]) = {
+    val sourcesJFiles = scalaSourcesFinder.findIn(dirs.map(new JFile(_)).toList)
     val sources = sourcesJFiles.map { file =>
       val canonicalPath = file.getCanonicalPath
       sourceFileFactory.createSourceFile(canonicalPath)

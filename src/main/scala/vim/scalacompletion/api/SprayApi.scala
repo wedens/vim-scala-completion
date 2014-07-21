@@ -1,9 +1,13 @@
 package vim.scalacompletion.api
 
 import spray.routing.HttpService
-import akka.actor.Actor
+import akka.pattern.ask
+import akka.actor.{Actor, ActorRef, Props}
 import vim.scalacompletion.{FacadeFactoryImpl, FacadeFactory, MemberInfo, FacadeActor}
+import FacadeActor._
 import collection.JavaConversions._
+import akka.util.Timeout
+import scala.concurrent.duration._
 
 class ConfigLoader {
   import java.io.{File => JFile}
@@ -13,9 +17,9 @@ class ConfigLoader {
 }
 
 class SprayApiActor extends Actor with SprayApi[MemberInfo] {
-  var facade: FacadeActor[MemberInfo] = _
+  var facade: ActorRef = _
   val transformer = new VimFormatTransformer
-  val facadeFactory: FacadeFactory[MemberInfo] = FacadeFactoryImpl
+  val facadeFactory: FacadeFactory[MemberInfo] = new FacadeFactoryImpl(context)
   val configLoader = new ConfigLoader
 
   def actorRefFactory = context
@@ -23,17 +27,21 @@ class SprayApiActor extends Actor with SprayApi[MemberInfo] {
 }
 
 trait SprayApi[T] extends HttpService {
-  var facade: FacadeActor[T]
+  var facade: ActorRef
   val transformer: FormatTransformer[T]
   val facadeFactory: FacadeFactory[T]
   val configLoader: ConfigLoader
 
+  implicit val timeout = Timeout(5.seconds)
+  implicit def executionContext = actorRefFactory.dispatcher
+
   val apiRoutes = path("completion") {
     get {
       parameters('name, 'file_path, 'offset.as[Int], 'column.as[Int], 'prefix.?) { (name, filePath, offset, column, prefix) =>
-        val completionResult = facade.completeAt(name, filePath, offset, column, prefix)
-        val transformedCompletion = transformer.transformCompletion(completionResult)
-        complete(transformedCompletion)
+        val future = (facade ? CompleteAt(name, filePath, offset, column, prefix)).mapTo[CompletionResult[T]].map { result =>
+          transformer.transformCompletion(result.members)
+        }
+        complete(future)
       }
     }
   } ~
@@ -42,9 +50,9 @@ trait SprayApi[T] extends HttpService {
       formField('conf) { conf =>
         val config = configLoader.load(conf)
         val classpath = config.getStringList("vim.scala-completion.classpath")
-        val sourceDirs = config.getStringList("vim.scala-completion.src-directories").toList
+        val sourceDirs = config.getStringList("vim.scala-completion.src-directories")
         facade = facadeFactory.createFacade(classpath)
-        facade.reloadAllSourcesInDirs(sourceDirs)
+        facade ! ReloadSourcesInDirs(sourceDirs)
         complete(conf)
       }
     }
