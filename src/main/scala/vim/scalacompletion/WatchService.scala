@@ -8,7 +8,7 @@ import java.nio.file.WatchEvent.Modifier
 import akka.actor.ActorRef
 import FileSystemEvents._
 
-class SourcesWatchService(observerActor: ActorRef) extends Runnable with WithLog {
+class WatchService(observerActor: ActorRef) extends Runnable with WithLog {
   private val watchService = FileSystems.getDefault.newWatchService()
 
   def watchRecursively(root: Path) {
@@ -42,7 +42,7 @@ class SourcesWatchService(observerActor: ActorRef) extends Runnable with WithLog
         }
       }
     } catch {
-      case e: InterruptedException => logg.info("Source watch service is stopped.")
+      case e: InterruptedException => logg.info("Watch service is stopped.")
     } finally {
       watchService.close()
     }
