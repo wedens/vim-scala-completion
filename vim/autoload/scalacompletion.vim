@@ -1,8 +1,8 @@
-" if exists('g:loaded_scalacompletion')
-"   finish
-" endif
+if exists('g:loaded_scalacompletion')
+  finish
+endif
 
-" let g:loaded_scalacompletion = 1
+let g:loaded_scalacompletion = 1
 
 fu! scalacompletion#Complete(findstart, base)
   if a:findstart == 1
@@ -31,6 +31,7 @@ fu! scalacompletion#Start()
     echoerr "Unexpected response from server: ".response_str
     return
   endif
+  autocmd FileType scala setlocal omnifunc=scalacompletion#Complete
   echom "Project started successfuly"
 endfu
 
