@@ -2,6 +2,9 @@ package vim.scalacompletion
 
 import java.io.{File => JFile}
 import akka.actor.{Actor, ActorRef}
+import akka.pattern.ask
+import akka.util.Timeout
+import scala.concurrent.duration._
 import collection.JavaConversions._
 
 object FacadeActor {
@@ -16,27 +19,43 @@ object FacadeActor {
   case object Initialized
 }
 
+class FacadeActorImpl(watchService: WatchService) extends FacadeActor[MemberInfo] {
+  override val compilerFactory = new CompilerFactoryImpl()
+  override val memberInfoExtractorFactory = new MemberInfoExtractorFactoryImpl()
+  override val completionTypeDetector = new CompletionTypeDetector
+  override val sourceFileFactory = new SourceFileFactoryImpl
+  override val membersFilter: MemberFilter[MemberInfo] = MemberInfoFilter
+  override val memberRankCalculator: MemberRankCalculator[MemberInfo] = MemberRankCalculatorImpl
+  override val scalaSourcesFinder = new ScalaSourcesFinder
+  override val configLoader = new ConfigLoader()
+  override val sourcesWatchActorFactory = new SourcesWatchActorFactory(context, scalaSourcesFinder, watchService)
+}
+
 trait FacadeActor[MemberInfoType] extends Actor with WithLog {
   import FacadeActor._
 
+  val configLoader: ConfigLoader
   val completionTypeDetector: CompletionTypeDetector
-  val memberInfoExtractorFactory: MemberInfoExtractorFactory
   val sourceFileFactory: SourceFileFactory
+  val scalaSourcesFinder: ScalaSourcesFinder
+  val sourcesWatchActorFactory: SourcesWatchActorFactory
+  val compilerFactory: CompilerFactory
   val membersFilter: MemberFilter[MemberInfoType]
   val memberRankCalculator: MemberRankCalculator[MemberInfoType]
-  val scalaSourcesFinder: ScalaSourcesFinder
-  val configLoader: ConfigLoader
-  val compilerFactory: CompilerFactory
-  val sourcesWatchActorFactory: SourcesWatchActorFactory
-  val watchService: WatchService
+  val memberInfoExtractorFactory: MemberInfoExtractorFactory[MemberInfoType]
 
   var extractor: Compiler#Member => MemberInfoType = _
   var compilerApi: Compiler = _
   var sourcesWatcher: ActorRef = _
 
+  implicit val timeout = Timeout(5.seconds)
+  implicit val ec = context.dispatcher
+
   def receive = {
-    case Init(configPath) =>
-      sender ! init(configPath)
+    case Init(configPath) => init(configPath)
+  }
+
+  def receiveNormal: Receive = {
     case CompleteAt(name, path, offset, column, prefix) =>
       sender ! CompletionResult(completeAt(name, path, offset, column, prefix))
     case ReloadSourcesInDirs(dirs) =>
@@ -53,10 +72,15 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
     val sourcesDirs = config.getStringList("vim.scala-completion.src-directories")
 
     compilerApi = compilerFactory.create(classpath.map(new JFile(_)))
-    sourcesWatcher = sourcesWatchActorFactory.create(self, watchService)
+    sourcesWatcher = sourcesWatchActorFactory.create(self)
+    extractor = memberInfoExtractorFactory.create(compilerApi)
     reloadAllSourcesInDirs(sourcesDirs)
-    sourcesWatcher ! SourcesWatchActor.WatchDirs(sourcesDirs) //TODO: response?
-    Initialized
+    val originalSender = sender
+
+    (sourcesWatcher ? SourcesWatchActor.WatchDirs(sourcesDirs)).foreach { _ =>
+      originalSender ! Initialized
+    }
+    context become receiveNormal // TODO: test!
   }
 
   def completeAt(name: String, path: String, offset: Int,

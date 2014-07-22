@@ -8,18 +8,22 @@ case class MemberInfo(name: String, fullSignature: String,
   isPublic: Boolean = false, isFromRootObjects: Boolean = true,
   isInherited: Option[Boolean] = None)
 
-class MemberInfoExtractorFactory {
-  def create(compiler: Global): compiler.Member => MemberInfo = member => {
+trait MemberInfoExtractorFactory[T] {
+  def create(compiler: Global): Compiler#Member => T
+}
+
+class MemberInfoExtractorFactoryImpl extends MemberInfoExtractorFactory[MemberInfo] {
+  def create(compiler: Global): Compiler#Member => MemberInfo = member => {
     import compiler.definitions
 
     val sym = member.sym
     val name = sym.nameString
-    val fullSignature = sym.defStringSeenAs(member.tpe)
+    val fullSignature = member.forceInfoString
     val isConstructor = sym.isConstructor
     val isLocal = sym.isLocalToBlock
     val isPublic = sym.isPublic
     val isInherited = member match {
-      case tm: compiler.TypeMember => Some(tm.inherited)
+      case tm: Compiler#TypeMember => Some(tm.inherited)
       case _ => None
     }
 

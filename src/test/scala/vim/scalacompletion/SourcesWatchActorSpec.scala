@@ -8,7 +8,11 @@ import org.specs2.mock._
 import java.nio.file.Paths
 import FacadeActor._
 
-class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest")) with SpecificationLike with Mockito with BeforeExample {
+class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"))
+                            with ImplicitSender
+                            with SpecificationLike
+                            with Mockito
+                            with BeforeExample {
 
   var watchService: WatchService = _
   var watchActor: TestActorRef[SourcesWatchActor] = _
@@ -18,6 +22,7 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
 
   val sourceFile = mock[java.io.File]
   val otherFile = mock[java.io.File]
+  val dirs = Seq("/tmp", "/var")
 
   def before = {
     watchService = mock[WatchService]
@@ -37,9 +42,15 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
     }
 
     "start watching two dirs on WatchDirs message" in {
-      watchActor ! SourcesWatchActor.WatchDirs(Seq("/tmp", "/var"))
+      watchActor ! SourcesWatchActor.WatchDirs(dirs)
 
       there was two(watchService).watchRecursively(any)
+    }
+
+    "reply with Watching message" in {
+      watchActor ! SourcesWatchActor.WatchDirs(dirs)
+
+      expectMsgType[SourcesWatchActor.Watching] must_== SourcesWatchActor.Watching(dirs)
     }
 
     "reload source when Created message received if file is scala source" in {
