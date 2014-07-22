@@ -9,6 +9,8 @@ object FacadeActor {
   case class CompletionResult[T](members: Seq[T])
 
   case class ReloadSourcesInDirs(dirs: Seq[String])
+  case class ReloadSources(sources: Seq[JFile])
+  case class RemoveSources(sources: Seq[JFile])
 }
 
 trait FacadeActor[MemberInfoType] extends Actor with WithLog {
