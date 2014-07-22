@@ -12,12 +12,8 @@ import spray.http.StatusCodes._
 import spray.http.FormData
 import akka.actor.{ActorSystem, Actor, ActorRef}
 import java.net.URLEncoder
-import collection.JavaConversions._
-import vim.scalacompletion.{FacadeActor, FacadeFactory,
-                            SourcesWatchActor, WatchService,
-                            SourcesWatchActorFactory, ConfigLoader}
+import vim.scalacompletion.{FacadeActor, FacadeFactory}
 import FacadeActor._
-import SourcesWatchActor._
 
 class SprayApiSpec extends Specification
                    with Specs2RouteTest
@@ -29,10 +25,8 @@ class SprayApiSpec extends Specification
   def actorRefFactory = system
 
   var facadeProbe: TestProbe = _
-  var facade: ActorRef = _
   val transformer = mock[FormatTransformer[String]]
   val facadeFactory = mock[FacadeFactory[String]]
-  val watchService = mock[WatchService]
 
   val path = "/src/main/scala/pkg/Source.scala"
   val tempPath = "/tmp/6157147744291722932"

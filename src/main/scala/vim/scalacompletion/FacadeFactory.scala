@@ -4,11 +4,11 @@ import java.io.{File => JFile}
 import akka.actor.{ActorRefFactory, Props, ActorRef}
 
 trait FacadeFactory[T] {
-  def createFacade(watchService: WatchService): ActorRef
+  def createFacade(actorRefFactory: ActorRefFactory): ActorRef
 }
 
-class FacadeFactoryImpl(actorRefFactory: ActorRefFactory) extends FacadeFactory[MemberInfo] {
-  def createFacade(watchSrv: WatchService): ActorRef = {
+class FacadeFactoryImpl(watchSrv: WatchService) extends FacadeFactory[MemberInfo] {
+  def createFacade(actorRefFactory: ActorRefFactory): ActorRef = {
     actorRefFactory.actorOf(Props(new FacadeActor[MemberInfo] {
       val compilerFactory = new CompilerFactoryImpl()
       val memberInfoExtractorFactory = new MemberInfoExtractorFactory()

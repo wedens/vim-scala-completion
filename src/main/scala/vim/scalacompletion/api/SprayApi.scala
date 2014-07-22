@@ -13,30 +13,23 @@ import collection.JavaConversions._
 import akka.util.Timeout
 import scala.concurrent.duration._
 
-class SprayApiActor extends Actor with SprayApi[MemberInfo] {
-  var facade: ActorRef = _
-  var sourcesWatcher: ActorRef = _
-  val transformer = new VimFormatTransformer
-  val facadeFactory: FacadeFactory[MemberInfo] = new FacadeFactoryImpl(context)
-  val watchService: WatchService = new WatchService()
-
-  val watchServiceThread = new Thread(watchService, "WatchService")
-  watchServiceThread.setDaemon(true)
-  watchServiceThread.start()
+class SprayApiActor(override val transformer: FormatTransformer[MemberInfo],
+                    override val facadeFactory: FacadeFactory[MemberInfo],
+                    watchServiceThread: Thread) extends Actor with SprayApi[MemberInfo] {
 
   def actorRefFactory = context
   def receive = runRoute(apiRoutes)
 
+  // should be better place to do it...
   override def postStop() = {
     watchServiceThread.interrupt()
   }
 }
 
 trait SprayApi[T] extends HttpService {
-  var facade: ActorRef
+  var facade: ActorRef = _
   val transformer: FormatTransformer[T]
   val facadeFactory: FacadeFactory[T]
-  val watchService: WatchService
 
   implicit val timeout = Timeout(5.seconds)
   implicit def executionContext = actorRefFactory.dispatcher
@@ -54,7 +47,7 @@ trait SprayApi[T] extends HttpService {
   path("init") {
     post {
       formField('conf) { configPath =>
-        facade = facadeFactory.createFacade(watchService)
+        facade = facadeFactory.createFacade(actorRefFactory)
         //TODO: tests that it was ask, and not tell
         val future = (facade ? FacadeActor.Init(configPath)).map { _=> configPath }
         complete(future)
