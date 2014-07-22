@@ -11,9 +11,11 @@ import org.mockito.Matchers.{eq => meq}
 import java.io.{File => JFile}
 import akka.actor._
 import akka.pattern.ask
-import akka.testkit.{ TestActorRef, TestKit }
+import akka.testkit._
 import akka.util.Timeout
 import scala.util.{Try, Success, Failure}
+import com.typesafe.config.Config
+import collection.JavaConversions._
 import FacadeActor._
 
 
@@ -29,6 +31,14 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
   var membersFilter: MemberFilter[String] = _
   var memberRankCalculator: MemberRankCalculator[String] = _
   var scalaSourcesFinder: ScalaSourcesFinder = _
+  var configLoader: ConfigLoader = _
+  var compilerFactory: CompilerFactory = _
+  var sourcesWatchActorFactory: SourcesWatchActorFactory = _
+  var watchService: WatchService = _
+  var sourcesWatcherProbe: TestProbe = _
+  var sourcesWatcher: ActorRef = _
+  var config: Config = _
+  var memberInfoExtractorFactory: MemberInfoExtractorFactory = _
 
   var facade: TestActorRef[FacadeActor[String]] = _
 
@@ -37,19 +47,41 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
   val sourcePath = "/tmp/6157147744291722932"
   val offset = 35
   val column = 15
-  val file1Mock = mock[JFile]
-  file1Mock.getCanonicalPath returns "/tmp/file1.scala"
-  val file2Mock = mock[JFile]
-  file2Mock.getCanonicalPath returns "/opt/file2.scala"
-  val files = Seq(file1Mock, file2Mock)
+  var file1Mock: JFile = _
+  var file2Mock: JFile = _
+  var files: Seq[JFile] = _
+  val configPath = "/tmp/xxx.conf"
+  val classpath = List("lib1.jar", "/tmp/lib2.jar")
+  val sourcesDirs = List("/tmp", "/opt")
 
   def before = {
+    file1Mock = mock[JFile]
+    file1Mock.getCanonicalPath returns "/tmp/file1.scala"
+    file2Mock = mock[JFile]
+    file2Mock.getCanonicalPath returns "/opt/file2.scala"
+    files = Seq(file1Mock, file2Mock)
+
+    config = mock[Config]
+    config.getStringList("vim.scala-completion.classpath") returns classpath
+    config.getStringList("vim.scala-completion.src-directories") returns sourcesDirs
+
+    configLoader = mock[ConfigLoader]
+    configLoader.load(any) returns config
+
+
+    watchService = mock[WatchService]
+    memberInfoExtractorFactory = mock[MemberInfoExtractorFactory]
+
     compilerApi = mock[Compiler]
     compilerApi.typeCompletion(any, any) returns List()
     compilerApi.scopeCompletion(any, any) returns List()
 
+    compilerFactory = mock[CompilerFactory]
+    compilerFactory.create(any) returns compilerApi
+
     completionTypeDetector = mock[CompletionTypeDetector]
     sourceFileFactory = mock[SourceFileFactory]
+    sourceFileFactory.createSourceFile(anyString, anyString) returns mock[SourceFile]
 
     scalaSourcesFinder = mock[ScalaSourcesFinder]
     scalaSourcesFinder.findIn(any) returns files
@@ -60,20 +92,70 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
     memberRankCalculator = mock[MemberRankCalculator[String]]
     memberRankCalculator.apply(any, any) returns 0
 
+    sourcesWatcherProbe = TestProbe()
+    sourcesWatcher = sourcesWatcherProbe.ref
+
+    sourcesWatchActorFactory = mock[SourcesWatchActorFactory]
+    sourcesWatchActorFactory.create(any, any) returns sourcesWatcher
+
     facade = TestActorRef(new FacadeActor[String] {
-      val compilerApi = selfSpec.compilerApi
+      compilerApi = selfSpec.compilerApi
       val completionTypeDetector = selfSpec.completionTypeDetector
-      val extractor: compilerApi.Member => String = m => m.toString
+      extractor = (m: Compiler#Member) => m.toString
       val sourceFileFactory = selfSpec.sourceFileFactory
       val membersFilter = selfSpec.membersFilter
       val memberRankCalculator = selfSpec.memberRankCalculator
       val scalaSourcesFinder = selfSpec.scalaSourcesFinder
+      val compilerFactory = selfSpec.compilerFactory
+      val configLoader = selfSpec.configLoader
+      val sourcesWatchActorFactory = selfSpec.sourcesWatchActorFactory
+      val memberInfoExtractorFactory = selfSpec.memberInfoExtractorFactory
+      val watchService = selfSpec.watchService
     })
   }
 
   sequential
 
   "facade" should {
+    "initialization" should {
+      "load config from provided path" in {
+        facade ! Init(configPath)
+
+        there was one(configLoader).load(configPath)
+      }
+
+      "create compiler with classpah from config" in {
+        facade ! Init(configPath)
+
+        there was one(compilerFactory).create(classpath.map(new JFile(_)))
+      }
+
+      "create sources watcher with sources path from config" in {
+        facade ! Init(configPath)
+
+        there was one(sourcesWatchActorFactory).create(facade, watchService)
+      }
+
+      "reload sources in path from config" in {
+        facade ! Init(configPath)
+
+        there was one(compilerApi).reloadSources(any)
+      }
+
+      "start watching source dirs from config" in {
+        facade ! Init(configPath)
+
+        sourcesWatcherProbe.expectMsgType[SourcesWatchActor.WatchDirs] must_== SourcesWatchActor.WatchDirs(sourcesDirs)
+      }
+
+      "respond with Initialized message" in {
+        val future = facade ? Init(configPath)
+
+        val Success(result) = future.mapTo[Initialized.type].value.get
+        ok
+      }
+    }
+
     "completion" should {
       "update source" in {
         stubSourceFactory()
@@ -81,7 +163,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
 
         facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
-        there was one(compilerApi).addSources(any[List[SourceFile]])
+        there was one(compilerApi).reloadSources(any[List[SourceFile]])
       }
 
       "detect completion type" in {
@@ -117,7 +199,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
 
         facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
 
-        there was one(compilerApi).addSources(any)
+        there was one(compilerApi).reloadSources(any)
         there were noMoreCallsTo(compilerApi)
       }
 
@@ -220,24 +302,22 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
     }
 
     "reloading all sources in directories" should {
-      val dirs = List("/tmp", "/opt")
-
       "find sources in directories" in {
-        facade ! ReloadSourcesInDirs(dirs)
+        facade ! ReloadSourcesInDirs(sourcesDirs)
 
         there was one(scalaSourcesFinder).findIn(List(new JFile("/tmp"), new JFile("/opt")))
       }
 
       "create compiler's source files for found sources" in {
-        facade ! ReloadSourcesInDirs(dirs)
+        facade ! ReloadSourcesInDirs(sourcesDirs)
 
         there was one(sourceFileFactory).createSourceFile("/tmp/file1.scala") andThen one(sourceFileFactory).createSourceFile("/opt/file2.scala")
       }
 
       "ask compiler to reload sources" in {
-        facade ! ReloadSourcesInDirs(dirs)
+        facade ! ReloadSourcesInDirs(sourcesDirs)
 
-        there was one(compilerApi).addSources(any)
+        there was one(compilerApi).reloadSources(any)
       }
     }
 
@@ -245,7 +325,7 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
       "ask compiler to reload sources" in {
         facade ! ReloadSources(Seq())
 
-        there was one(compilerApi).addSources(any)
+        there was one(compilerApi).reloadSources(any)
       }
     }
 

@@ -1,7 +1,8 @@
 package vim.scalacompletion
 
 import java.io.{File => JFile}
-import akka.actor.Actor
+import akka.actor.{Actor, ActorRef}
+import collection.JavaConversions._
 
 object FacadeActor {
   case class CompleteAt(name: String, path: String,
@@ -11,20 +12,31 @@ object FacadeActor {
   case class ReloadSourcesInDirs(dirs: Seq[String])
   case class ReloadSources(sources: Seq[JFile])
   case class RemoveSources(sources: Seq[JFile])
+  case class Init(configPath: String)
+  case object Initialized
 }
 
 trait FacadeActor[MemberInfoType] extends Actor with WithLog {
   import FacadeActor._
 
-  val compilerApi: Compiler
   val completionTypeDetector: CompletionTypeDetector
-  val extractor: compilerApi.Member => MemberInfoType
+  val memberInfoExtractorFactory: MemberInfoExtractorFactory
   val sourceFileFactory: SourceFileFactory
   val membersFilter: MemberFilter[MemberInfoType]
   val memberRankCalculator: MemberRankCalculator[MemberInfoType]
   val scalaSourcesFinder: ScalaSourcesFinder
+  val configLoader: ConfigLoader
+  val compilerFactory: CompilerFactory
+  val sourcesWatchActorFactory: SourcesWatchActorFactory
+  val watchService: WatchService
+
+  var extractor: Compiler#Member => MemberInfoType = _
+  var compilerApi: Compiler = _
+  var sourcesWatcher: ActorRef = _
 
   def receive = {
+    case Init(configPath) =>
+      sender ! init(configPath)
     case CompleteAt(name, path, offset, column, prefix) =>
       sender ! CompletionResult(completeAt(name, path, offset, column, prefix))
     case ReloadSourcesInDirs(dirs) =>
@@ -35,10 +47,22 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
       removeSources(sources)
   }
 
+  def init(configPath: String) = {
+    val config = configLoader.load(configPath) // TODO: not exists?
+    val classpath = config.getStringList("vim.scala-completion.classpath")
+    val sourcesDirs = config.getStringList("vim.scala-completion.src-directories")
+
+    compilerApi = compilerFactory.create(classpath.map(new JFile(_)))
+    sourcesWatcher = sourcesWatchActorFactory.create(self, watchService)
+    reloadAllSourcesInDirs(sourcesDirs)
+    sourcesWatcher ! SourcesWatchActor.WatchDirs(sourcesDirs) //TODO: response?
+    Initialized
+  }
+
   def completeAt(name: String, path: String, offset: Int,
           column: Int, prefix: Option[String]): Seq[MemberInfoType] = {
     val source = sourceFileFactory.createSourceFile(name, path)
-    compilerApi.addSources(List(source))
+    compilerApi.reloadSources(List(source))
 
     val lineIdx = source.offsetToLine(offset)
     val sourceLine = source.lineToString(lineIdx)
@@ -77,7 +101,7 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
 
   def reloadSources(sourcesJFiles: Seq[JFile]) = {
     val sources = filesToSourceFiles(sourcesJFiles)
-    compilerApi.addSources(sources)
+    compilerApi.reloadSources(sources)
   }
 
   def removeSources(sourcesJFiles: Seq[JFile]) = {

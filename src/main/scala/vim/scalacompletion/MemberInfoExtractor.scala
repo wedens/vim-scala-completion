@@ -8,8 +8,8 @@ case class MemberInfo(name: String, fullSignature: String,
   isPublic: Boolean = false, isFromRootObjects: Boolean = true,
   isInherited: Option[Boolean] = None)
 
-object MemberInfoExtractor {
-  def apply(compiler: Global): compiler.Member => MemberInfo = member => {
+class MemberInfoExtractorFactory {
+  def create(compiler: Global): compiler.Member => MemberInfo = member => {
     import compiler.definitions
 
     val sym = member.sym

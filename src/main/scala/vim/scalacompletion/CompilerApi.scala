@@ -11,7 +11,7 @@ class Compiler(settings: Settings, _reporter: Reporter, projectName: String = ""
 
 trait CompilerApi extends WithLog { self: Global =>
 
-  def addSources(sources: List[SourceFile]) = {
+  def reloadSources(sources: List[SourceFile]) = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
     withResponse[Unit](r => askReload(sources, r)).get
   }

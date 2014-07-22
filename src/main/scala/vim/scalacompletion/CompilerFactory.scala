@@ -5,8 +5,12 @@ import scala.tools.nsc.reporters.{StoreReporter, ConsoleReporter}
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 
-object CompilerFactory extends WithLog {
-  def apply(jars: Seq[JFile]) = {
+trait CompilerFactory {
+  def create(jars: Seq[JFile]): Compiler
+}
+
+class CompilerFactoryImpl extends CompilerFactory with WithLog {
+  def create(jars: Seq[JFile]) = {
     logg.info(s"Creating compiler...")
     val settings = new Settings()
     val sep = JFile.pathSeparator

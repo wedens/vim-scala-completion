@@ -15,7 +15,7 @@ import java.net.URLEncoder
 import collection.JavaConversions._
 import vim.scalacompletion.{FacadeActor, FacadeFactory,
                             SourcesWatchActor, WatchService,
-                            SourcesWatchActorFactory}
+                            SourcesWatchActorFactory, ConfigLoader}
 import FacadeActor._
 import SourcesWatchActor._
 
@@ -30,36 +30,18 @@ class SprayApiSpec extends Specification
 
   var facadeProbe: TestProbe = _
   var facade: ActorRef = _
-  var sourcesWatcherProbe: TestProbe = _
-  var sourcesWatcher: ActorRef = _
-
   val transformer = mock[FormatTransformer[String]]
   val facadeFactory = mock[FacadeFactory[String]]
-  val configLoader = mock[ConfigLoader]
-  val config = mock[com.typesafe.config.Config]
   val watchService = mock[WatchService]
-  val sourcesWatchActorFactory = mock[SourcesWatchActorFactory]
 
   val path = "/src/main/scala/pkg/Source.scala"
   val tempPath = "/tmp/6157147744291722932"
   val urlEncodedName = URLEncoder.encode(path, "UTF-8")
   val urlEncodedFilePath = URLEncoder.encode(tempPath, "UTF-8")
-  val srcDirs = List("/tmp", "/opt")
-  val classpath = List("lib1.jar", "/tmp/lib2.jar")
 
   def before = {
      org.mockito.Mockito.reset(transformer)
      org.mockito.Mockito.reset(facadeFactory)
-     org.mockito.Mockito.reset(configLoader)
-     org.mockito.Mockito.reset(config)
-     org.mockito.Mockito.reset(sourcesWatchActorFactory)
-
-     config.getStringList("vim.scala-completion.classpath") returns classpath
-     config.getStringList("vim.scala-completion.src-directories") returns srcDirs
-     configLoader.load(any) returns config
-
-     sourcesWatcherProbe = TestProbe()
-     sourcesWatcher = sourcesWatcherProbe.ref
 
      facadeProbe = TestProbe()
      facade = facadeProbe.ref
@@ -69,13 +51,15 @@ class SprayApiSpec extends Specification
            case _: CompleteAt =>
              sender ! CompletionResult(Seq[String]())
              TestActor.KeepRunning
-           case _: ReloadSourcesInDirs =>
+           case _ : FacadeActor.Init =>
+             sender ! FacadeActor.Initialized
+             TestActor.KeepRunning
+           case _ =>
              TestActor.KeepRunning
          }
      })
 
      facadeFactory.createFacade(any) returns facade
-     sourcesWatchActorFactory.create(any, any) returns sourcesWatcher
   }
 
   sequential
@@ -153,39 +137,24 @@ class SprayApiSpec extends Specification
     }
 
     "POST /init" should {
+      val configPath = "vim_scala_completion.conf"
+      def init = Post(s"/init", FormData(Map("conf" -> configPath))) ~> apiRoutes
+
       "create facade actor" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          there was one(facadeFactory).createFacade(any)
+        init ~> check {
+          there was one(facadeFactory).createFacade(watchService)
         }
       }
 
-      "create facade with classpath from config" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          there was one(facadeFactory).createFacade(classpath)
+      "initialize facade" in {
+        init ~> check {
+          facadeProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPath)
         }
       }
 
-      "echo conf" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          responseAs[String] must_== "vim_scala_completion.conf"
-        }
-      }
-
-      "reload sources in directories" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          facadeProbe.expectMsgType[ReloadSourcesInDirs] must_== ReloadSourcesInDirs(srcDirs)
-        }
-      }
-
-      "create sources watcher" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          there was one(sourcesWatchActorFactory).create(facade, watchService)
-        }
-      }
-
-      "start watching dirs for changes" in {
-        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          sourcesWatcherProbe.expectMsgType[WatchDirs] must_== WatchDirs(srcDirs)
+      "complete with config path" in {
+        init ~> check {
+          responseAs[String] must_== configPath
         }
       }
     }

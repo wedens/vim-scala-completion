@@ -10,6 +10,7 @@ class CompilerApiSpec extends Specification {
   val scalaLibJarPath = "/scala-library-2.11.1.jar"
   val scalazJarPath = "/scalaz-core_2.11-7.0.6.jar"
 
+
   def jars = Seq(
     new JFile(getClass().getResource(rtJarPath).toURI),
     new JFile(getClass().getResource(scalaLibJarPath).toURI),
@@ -24,12 +25,13 @@ class CompilerApiSpec extends Specification {
     new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-httpx_2.11/bundles/spray-httpx_2.11-1.3.1.jar")
   )
 
+  val compilerFactory = new CompilerFactoryImpl()
+  var compiler: Compiler = compilerFactory.create(jars)
+  val nameExtractor: Compiler#Member => String = m => m.sym.nameString
+
   def createSource(code: String) = new BatchSourceFile("test", code)
   def locationMarker(str: String) = str.indexOf("$")
   def stripLocationMarker(codeRaw: String) = codeRaw.patch(locationMarker(codeRaw), "", 1)
-
-  def createNameExtractorFor(compiler: Global): compiler.Member => String =
-    m => m.sym.nameString
 
   def completionExample(exampleCode: => String) = {
     val codeRaw = s"""object app extends App {
@@ -38,16 +40,18 @@ class CompilerApiSpec extends Specification {
     """
     val code = stripLocationMarker(codeRaw)
     val source = createSource(code)
+    compiler.reloadSources(List(source))
     val position = source.position(locationMarker(codeRaw))
     (position, source)
   }
 
+  sequential
+
   "compiler api" should {
     "add sources" in {
       val source = createSource("object app { println(\"x\") }")
-      val compiler = CompilerFactory(jars)
 
-      compiler.addSources(List(source)) must beLeft
+      compiler.reloadSources(List(source)) must beLeft
     }
 
     "do type completion" in {
@@ -56,10 +60,6 @@ class CompilerApiSpec extends Specification {
         str$.
         """
       }
-
-      val compiler = CompilerFactory(jars)
-      compiler.addSources(List(source))
-      val nameExtractor = createNameExtractorFor(compiler)
 
       compiler.typeCompletion(position, nameExtractor) must contain("substring")
     }
@@ -70,10 +70,6 @@ class CompilerApiSpec extends Specification {
           $
         """
       }
-
-      val compiler = CompilerFactory(jars)
-      compiler.addSources(List(source))
-      val nameExtractor = createNameExtractorFor(compiler)
 
       compiler.scopeCompletion(position, nameExtractor) must contain("MyCaseClass")
     }
@@ -86,14 +82,10 @@ class CompilerApiSpec extends Specification {
         """
       }
 
-      val compiler = CompilerFactory(jars)
-      compiler.addSources(List(source))
-      val nameExtractor = createNameExtractorFor(compiler)
-
       compiler.typeCompletion(position, nameExtractor) must contain("head")
     }
 
-    "do type completion inside of method call with 2 params by name" in {
+    "do type completion inside of method call with 2 params by name" in pending {
       val (position, source) = completionExample {
         """
         implicit class OptionW[T](opt: Option[T]) {
@@ -102,17 +94,12 @@ class CompilerApiSpec extends Specification {
         Option(List(1,2)).cata(_$.)"""
       }
 
-      val compiler = CompilerFactory(jars)
-      compiler.addSources(List(source))
-      val nameExtractor = createNameExtractorFor(compiler)
-
       compiler.typeCompletion(position, nameExtractor) must contain("head")
     }
 
     "remove sources" in {
       val source = createSource("object app { println(\"x\") }")
-      val compiler = CompilerFactory(jars)
-      compiler.addSources(List(source))
+      compiler.reloadSources(List(source))
 
       compiler.removeSources(List(source)) must beLeft
     }

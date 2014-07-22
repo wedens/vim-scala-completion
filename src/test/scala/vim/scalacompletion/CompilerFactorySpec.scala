@@ -15,9 +15,11 @@ class CompilerFactorySpec extends Specification {
     new JFile(getClass().getResource(scalazJarPath).toURI)
   )
 
+  val compilerFactory = new CompilerFactoryImpl()
+
   "compiler factory" should {
     "have expected classpath" in {
-      val settings = CompilerFactory(jars).settings
+      val settings = compilerFactory.create(jars).settings
 
       settings.classpath.toString must contain(rtJarPath)
       settings.classpath.toString must contain(scalaLibJarPath)
@@ -25,7 +27,7 @@ class CompilerFactorySpec extends Specification {
     }
 
     "have console reporter" in {
-      val compiler = CompilerFactory(jars)
+      val compiler = compilerFactory.create(jars)
 
       compiler.reporter must beAnInstanceOf[StoreReporter]
     }
