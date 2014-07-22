@@ -66,9 +66,14 @@ class SprayApiSpec extends Specification
 
   "api" should {
     "GET /completion" should {
+      def completionRequest(prefix: Option[String] = Some("abc")) = {
+        val pfx = prefix.map(p => "&prefix=" + p) getOrElse ""
+        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}") ~> apiRoutes
+      }
+
       "call completion" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt]
           ok
         }
@@ -76,7 +81,7 @@ class SprayApiSpec extends Specification
 
       "call completion with correct position" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
             case CompleteAt(_, _, 25, 14, _) => ok
           }
@@ -85,7 +90,7 @@ class SprayApiSpec extends Specification
 
       "call completion with correct name" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
             case CompleteAt(_name, _, _, _, _) => _name must_== path
           }
@@ -94,7 +99,7 @@ class SprayApiSpec extends Specification
 
       "call completion with correct file path" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
             case CompleteAt(_, _path, _, _, _) => _path must_== tempPath
           }
@@ -103,7 +108,7 @@ class SprayApiSpec extends Specification
 
       "call completion with correct prefix" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
             case CompleteAt(_, _, _, _, Some("abc")) => ok
           }
@@ -112,7 +117,7 @@ class SprayApiSpec extends Specification
 
       "call completion without prefix" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath") ~> apiRoutes ~> check {
+        completionRequest(prefix = None) ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
             case CompleteAt(_, _, _, _, None) => ok
           }
@@ -121,7 +126,7 @@ class SprayApiSpec extends Specification
 
       "transform completion result" in {
         transformer.transformCompletion(any) returns ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           there was one(transformer).transformCompletion(any)
         }
       }
@@ -130,7 +135,7 @@ class SprayApiSpec extends Specification
         val transformed = "[{'word': 'a'}, {'word': 'b'}]"
         transformer.transformCompletion(any) returns transformed
 
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=$urlEncodedFilePath&prefix=abc") ~> apiRoutes ~> check {
+        completionRequest() ~> check {
           responseAs[String] must_== transformed
         }
       }
@@ -138,22 +143,16 @@ class SprayApiSpec extends Specification
 
     "POST /init" should {
       val configPath = "vim_scala_completion.conf"
-      def init = Post(s"/init", FormData(Map("conf" -> configPath))) ~> apiRoutes
+      def initRequest = Post(s"/init", FormData(Map("conf" -> configPath))) ~> apiRoutes
 
-      "create facade actor" in {
-        init ~> check {
-          there was one(facadeFactory).createFacade(watchService)
-        }
-      }
-
-      "initialize facade" in {
-        init ~> check {
+      "initialize facade with config path" in {
+        initRequest ~> check {
           facadeProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPath)
         }
       }
 
       "complete with config path" in {
-        init ~> check {
+        initRequest ~> check {
           responseAs[String] must_== configPath
         }
       }
