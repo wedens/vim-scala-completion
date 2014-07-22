@@ -37,6 +37,11 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
   val sourcePath = "/tmp/6157147744291722932"
   val offset = 35
   val column = 15
+  val file1Mock = mock[JFile]
+  file1Mock.getCanonicalPath returns "/tmp/file1.scala"
+  val file2Mock = mock[JFile]
+  file2Mock.getCanonicalPath returns "/opt/file2.scala"
+  val files = Seq(file1Mock, file2Mock)
 
   def before = {
     compilerApi = mock[Compiler]
@@ -45,7 +50,9 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
 
     completionTypeDetector = mock[CompletionTypeDetector]
     sourceFileFactory = mock[SourceFileFactory]
+
     scalaSourcesFinder = mock[ScalaSourcesFinder]
+    scalaSourcesFinder.findIn(any) returns files
 
     membersFilter = mock[MemberFilter[String]]
     membersFilter.apply(any, any) returns true
@@ -213,35 +220,40 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
     }
 
     "reloading all sources in directories" should {
-      val file1Mock = mock[JFile]
-      file1Mock.getCanonicalPath returns "/tmp/file1.scala"
-      val file2Mock = mock[JFile]
-      file2Mock.getCanonicalPath returns "/opt/file2.scala"
       val dirs = List("/tmp", "/opt")
-      val files = Seq(file1Mock, file2Mock)
 
       "find sources in directories" in {
-        scalaSourcesFinder.findIn(any) returns files
-
         facade ! ReloadSourcesInDirs(dirs)
 
         there was one(scalaSourcesFinder).findIn(List(new JFile("/tmp"), new JFile("/opt")))
       }
 
       "create compiler's source files for found sources" in {
-        scalaSourcesFinder.findIn(any) returns files
-
         facade ! ReloadSourcesInDirs(dirs)
 
         there was one(sourceFileFactory).createSourceFile("/tmp/file1.scala") andThen one(sourceFileFactory).createSourceFile("/opt/file2.scala")
       }
 
       "ask compiler to reload sources" in {
-        scalaSourcesFinder.findIn(any) returns files
-
         facade ! ReloadSourcesInDirs(dirs)
 
         there was one(compilerApi).addSources(any)
+      }
+    }
+
+    "reloading source files" should {
+      "ask compiler to reload sources" in {
+        facade ! ReloadSources(Seq())
+
+        there was one(compilerApi).addSources(any)
+      }
+    }
+
+    "removing source files" should {
+      "ask compiler to remove sources" in {
+        facade ! RemoveSources(Seq())
+
+        there was one(compilerApi).removeSources(any)
       }
     }
   }

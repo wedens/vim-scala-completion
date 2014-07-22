@@ -4,19 +4,20 @@ import org.specs2.mutable.Specification
 import org.specs2.mock._
 import org.specs2.specification.BeforeExample
 import org.specs2.time.NoTimeConversions
+import org.mockito.Matchers.{eq => meq}
 import spray.testkit.Specs2RouteTest
+import akka.testkit.{TestProbe, TestActor}
 import spray.routing.HttpService
 import spray.http.StatusCodes._
-import java.net.URLEncoder
-import vim.scalacompletion.{FacadeActor, FacadeFactory}
-import FacadeActor._
-import org.mockito.Matchers.{eq => meq}
 import spray.http.FormData
-import akka.actor.ActorSystem
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.testkit.{TestProbe, TestActor}
+import akka.actor.{ActorSystem, Actor, ActorRef}
+import java.net.URLEncoder
 import collection.JavaConversions._
+import vim.scalacompletion.{FacadeActor, FacadeFactory,
+                            SourcesWatchActor, WatchService,
+                            SourcesWatchActorFactory}
+import FacadeActor._
+import SourcesWatchActor._
 
 class SprayApiSpec extends Specification
                    with Specs2RouteTest
@@ -29,10 +30,15 @@ class SprayApiSpec extends Specification
 
   var facadeProbe: TestProbe = _
   var facade: ActorRef = _
+  var sourcesWatcherProbe: TestProbe = _
+  var sourcesWatcher: ActorRef = _
+
   val transformer = mock[FormatTransformer[String]]
   val facadeFactory = mock[FacadeFactory[String]]
   val configLoader = mock[ConfigLoader]
   val config = mock[com.typesafe.config.Config]
+  val watchService = mock[WatchService]
+  val sourcesWatchActorFactory = mock[SourcesWatchActorFactory]
 
   val path = "/src/main/scala/pkg/Source.scala"
   val tempPath = "/tmp/6157147744291722932"
@@ -46,11 +52,14 @@ class SprayApiSpec extends Specification
      org.mockito.Mockito.reset(facadeFactory)
      org.mockito.Mockito.reset(configLoader)
      org.mockito.Mockito.reset(config)
-
+     org.mockito.Mockito.reset(sourcesWatchActorFactory)
 
      config.getStringList("vim.scala-completion.classpath") returns classpath
      config.getStringList("vim.scala-completion.src-directories") returns srcDirs
      configLoader.load(any) returns config
+
+     sourcesWatcherProbe = TestProbe()
+     sourcesWatcher = sourcesWatcherProbe.ref
 
      facadeProbe = TestProbe()
      facade = facadeProbe.ref
@@ -66,6 +75,7 @@ class SprayApiSpec extends Specification
      })
 
      facadeFactory.createFacade(any) returns facade
+     sourcesWatchActorFactory.create(any, any) returns sourcesWatcher
   }
 
   sequential
@@ -164,6 +174,18 @@ class SprayApiSpec extends Specification
       "reload sources in directories" in {
         Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
           facadeProbe.expectMsgType[ReloadSourcesInDirs] must_== ReloadSourcesInDirs(srcDirs)
+        }
+      }
+
+      "create sources watcher" in {
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
+          there was one(sourcesWatchActorFactory).create(facade, watchService)
+        }
+      }
+
+      "start watching dirs for changes" in {
+        Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
+          sourcesWatcherProbe.expectMsgType[WatchDirs] must_== WatchDirs(srcDirs)
         }
       }
     }

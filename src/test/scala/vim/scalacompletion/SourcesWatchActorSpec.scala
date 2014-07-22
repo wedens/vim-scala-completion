@@ -10,38 +10,36 @@ import FacadeActor._
 
 class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest")) with SpecificationLike with Mockito with BeforeExample {
 
-  var watchServiceMock: WatchService = _
+  var watchService: WatchService = _
   var watchActor: TestActorRef[SourcesWatchActor] = _
   var facadeProbe: TestProbe = _
   var facade: ActorRef = _
   var sourcesFinder: ScalaSourcesFinder = _
 
-  val sourceFile = new java.io.File("/tmp/xxx.scala")
-  val otherFile = new java.io.File("/tmp/xxx.cpp")
+  val sourceFile = mock[java.io.File]
+  val otherFile = mock[java.io.File]
 
   def before = {
-    watchServiceMock = mock[WatchService]
+    watchService = mock[WatchService]
     sourcesFinder = mock[ScalaSourcesFinder]
     sourcesFinder.isScalaSource(sourceFile) returns true
     sourcesFinder.isScalaSource(otherFile) returns false
     facadeProbe = TestProbe()
     facade = facadeProbe.ref
-    watchActor = TestActorRef(new SourcesWatchActor(facade, watchServiceMock, sourcesFinder))
+    watchActor = TestActorRef(new SourcesWatchActor(facade, watchService, sourcesFinder))
   }
 
   sequential
 
   "sources watch actor" should {
     "register self as observer for changes" in {
-      there was one(watchServiceMock).addObserver(watchActor)
+      there was one(watchService).addObserver(watchActor)
     }
 
-    "start watching dir on WatchDir message" in {
-      val dir = Paths.get("/tmp")
+    "start watching two dirs on WatchDirs message" in {
+      watchActor ! SourcesWatchActor.WatchDirs(Seq("/tmp", "/var"))
 
-      watchActor ! SourcesWatchActor.WatchDir(dir)
-
-      there was one(watchServiceMock).watchRecursively(any)
+      there was two(watchService).watchRecursively(any)
     }
 
     "reload source when Created message received if file is scala source" in {
@@ -80,10 +78,10 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
     }
 
     "not remove file when Deleted message received and file is not scala source" in {
-       watchActor ! FileSystemEvents.Deleted(otherFile)
+      watchActor ! FileSystemEvents.Deleted(otherFile)
 
-       facadeProbe.expectNoMsg()
-       ok
+      facadeProbe.expectNoMsg()
+      ok
     }
   }
 }

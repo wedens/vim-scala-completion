@@ -29,6 +29,10 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
       sender ! CompletionResult(completeAt(name, path, offset, column, prefix))
     case ReloadSourcesInDirs(dirs) =>
       reloadAllSourcesInDirs(dirs)
+    case ReloadSources(sources) =>
+      reloadSources(sources)
+    case RemoveSources(sources) =>
+      removeSources(sources)
   }
 
   def completeAt(name: String, path: String, offset: Int,
@@ -68,10 +72,23 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
 
   def reloadAllSourcesInDirs(dirs: Seq[String]) = {
     val sourcesJFiles = scalaSourcesFinder.findIn(dirs.map(new JFile(_)).toList)
-    val sources = sourcesJFiles.map { file =>
+    reloadSources(sourcesJFiles)
+  }
+
+  def reloadSources(sourcesJFiles: Seq[JFile]) = {
+    val sources = filesToSourceFiles(sourcesJFiles)
+    compilerApi.addSources(sources)
+  }
+
+  def removeSources(sourcesJFiles: Seq[JFile]) = {
+    val sources = filesToSourceFiles(sourcesJFiles)
+    compilerApi.removeSources(sources)
+  }
+
+  private def filesToSourceFiles(sourcesJFiles: Seq[JFile]) = {
+    sourcesJFiles.map { file =>
       val canonicalPath = file.getCanonicalPath
       sourceFileFactory.createSourceFile(canonicalPath)
     }.toList
-    compilerApi.addSources(sources)
   }
 }
