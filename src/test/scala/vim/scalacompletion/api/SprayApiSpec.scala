@@ -38,6 +38,8 @@ class SprayApiSpec extends Specification
   val tempPath = "/tmp/6157147744291722932"
   val urlEncodedName = URLEncoder.encode(path, "UTF-8")
   val urlEncodedFilePath = URLEncoder.encode(tempPath, "UTF-8")
+  val srcDirs = List("/tmp", "/opt")
+  val classpath = List("lib1.jar", "/tmp/lib2.jar")
 
   def before = {
      org.mockito.Mockito.reset(transformer)
@@ -46,8 +48,8 @@ class SprayApiSpec extends Specification
      org.mockito.Mockito.reset(config)
 
 
-     config.getStringList("vim.scala-completion.classpath") returns Seq()
-     config.getStringList("vim.scala-completion.src-directories") returns Seq()
+     config.getStringList("vim.scala-completion.classpath") returns classpath
+     config.getStringList("vim.scala-completion.src-directories") returns srcDirs
      configLoader.load(any) returns config
 
      facadeProbe = TestProbe()
@@ -148,9 +150,6 @@ class SprayApiSpec extends Specification
       }
 
       "create facade with classpath from config" in {
-        val classpath = List("lib1.jar", "/tmp/lib2.jar")
-        config.getStringList("vim.scala-completion.classpath") returns classpath
-
         Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
           there was one(facadeFactory).createFacade(classpath)
         }
@@ -164,9 +163,6 @@ class SprayApiSpec extends Specification
 
       "reload sources in directories" in {
         Post(s"/init", FormData(Map("conf" -> "vim_scala_completion.conf"))) ~> apiRoutes ~> check {
-          val srcDirs = List("/tmp", "/opt")
-          config.getStringList("vim.scala-completion.src-directories") returns srcDirs
-
           facadeProbe.expectMsgType[ReloadSourcesInDirs] must_== ReloadSourcesInDirs(srcDirs)
         }
       }
