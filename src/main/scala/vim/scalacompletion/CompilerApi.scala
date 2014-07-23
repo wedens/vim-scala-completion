@@ -26,7 +26,7 @@ trait CompilerApi extends WithLog { self: Global =>
     }
   }
 
-  def scopeCompletion[T](position: Position, extractor: Member => T) = {
+  def scopeCompletion[T](position: Position, extractor: Member => T): Seq[T] = {
     withResponse[List[Member]](r => askScopeCompletion(position, r)).get match {
       case Left(matches) =>
         ask { () =>

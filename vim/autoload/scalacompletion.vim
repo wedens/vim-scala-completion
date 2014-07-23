@@ -48,10 +48,9 @@ fu! s:doCompletion(prefix)
   let offset = s:cursorOffset()
   let name = s:absolutePath()
   let tmpFilePath = s:saveCurrentBufferToTempFile()
-  let column = s:startOfWord() - 1
 
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset.'&column='.column
+  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset
   if len(a:prefix) > 0
     let command = command."&prefix=".s:urlEncode(a:prefix)
   endif

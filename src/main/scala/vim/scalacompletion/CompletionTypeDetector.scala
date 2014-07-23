@@ -1,6 +1,12 @@
 package vim.scalacompletion
 
+import scala.reflect.api.Position
+
 class CompletionTypeDetector {
+  def detect(position: Position): CompletionType = {
+    detect(position.lineContent, position.column)
+  }
+
   def detect(line: String, pos: Int): CompletionType = {
     val (beforePos, afterPos) = line.splitAt(pos + 1)
     val lineBeforePosReversed = beforePos.reverse

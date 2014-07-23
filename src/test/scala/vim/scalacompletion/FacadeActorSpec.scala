@@ -3,10 +3,14 @@ package vim.scalacompletion
 import org.specs2.mutable._
 import org.specs2.mock._
 import org.specs2.time.NoTimeConversions
+import org.specs2.specification.Scope
+import org.specs2.matcher.ThrownExpectations
+import scala.concurrent.duration._
+import scala.reflect.internal.util.Position
 import scala.tools.nsc.interactive.Global
 import scala.reflect.internal.util.SourceFile
 import scala.concurrent.duration._
-import org.specs2.specification.BeforeExample
+// import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
 import java.io.{File => JFile}
 import akka.actor._
@@ -17,332 +21,179 @@ import scala.util.{Try, Success, Failure}
 import com.typesafe.config.Config
 import collection.JavaConversions._
 import FacadeActor._
+import scala.reflect.internal.util.Position
 
+trait createdFacade extends Scope
+             with Mockito
+             with ThrownExpectations { outerSelf =>
 
-class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
-                      with SpecificationLike
-                      with Mockito
-                      with BeforeExample
-                      with NoTimeConversions { selfSpec =>
+  implicit val system: ActorSystem
 
-  var compilerApi = mock[Compiler]
-  var completionTypeDetector = mock[CompletionTypeDetector]
+  var compilerMock = mock[Compiler]
   var sourceFileFactory = mock[SourceFileFactory]
-  var membersFilter = mock[MemberFilter[String]]
-  var memberRankCalculator = mock[MemberRankCalculator[String]]
   var scalaSourcesFinder = mock[ScalaSourcesFinder]
   var configLoader = mock[ConfigLoader]
   var compilerFactory = mock[CompilerFactory]
   var sourcesWatchActorFactory = mock[SourcesWatchActorFactory]
   var watchService = mock[WatchService]
-  var sourcesWatcherProbe = mock[TestProbe]
-  var sourcesWatcher = mock[ActorRef]
-  var config = mock[Config]
-  var memberInfoExtractorFactory = mock[MemberInfoExtractorFactory[String]]
+  val completionHandlerFactory = mock[CompletionHandlerFactory[String]]
+  val completionHandler = mock[CompletionHandler[String]]
 
-  var facade = mock[TestActorRef[FacadeActor[String]]]
+  val facade = TestActorRef(new FacadeActor[String] {
+    compiler = outerSelf.compilerMock
+    completionHandler = outerSelf.completionHandler
+    val sourceFileFactory = outerSelf.sourceFileFactory
+    val scalaSourcesFinder = outerSelf.scalaSourcesFinder
+    val compilerFactory = outerSelf.compilerFactory
+    val configLoader = outerSelf.configLoader
+    val sourcesWatchActorFactory = outerSelf.sourcesWatchActorFactory
+    val watchService = outerSelf.watchService
+    val completionHandlerFactory = outerSelf.completionHandlerFactory
+  })
+}
 
-  implicit val timeout = Timeout(5 seconds)
+class facadeInit(override implicit val system: ActorSystem) extends createdFacade {
+  val sourceDir1 = mock[JFile]
+  val sourceDir2 = mock[JFile]
+  val sourceDirs = List(sourceDir1, sourceDir2)
+
+  val sourceFile1 = mock[JFile]
+  val sourceFile2 = mock[JFile]
+  val sourceFiles = List(sourceFile1, sourceFile2)
+  scalaSourcesFinder.findIn(any) returns sourceFiles
+
+  val source = mock[SourceFile]
+  val sourceFile1Path = "/tmp/file1.scala"
+  val sourceFile2Path = "/opt/file2.scala"
+  sourceFile1.getCanonicalPath returns sourceFile1Path
+  sourceFile2.getCanonicalPath returns sourceFile2Path
+  sourceFileFactory.createSourceFile(sourceFile1Path) returns source
+  sourceFileFactory.createSourceFile(sourceFile2Path) returns source
+
+  val configPath = "/tmp/xxx.conf"
+  val config = mock[Config]
+  val sourceDirsStr = Seq("/tmp", "/opt")
+  config.getStringList("vim.scala-completion.src-directories") returns sourceDirsStr
+  configLoader.load(configPath) returns config
+
+  val sourcesWatcherProbe = TestProbe()
+  sourcesWatcherProbe.setAutoPilot(new TestActor.AutoPilot {
+    def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
+      msg match {
+        case SourcesWatchActor.WatchDirs(d) =>
+          sender ! SourcesWatchActor.Watching(d)
+          TestActor.KeepRunning
+      }
+  })
+  val sourcesWatcher = sourcesWatcherProbe.ref
+  sourcesWatchActorFactory.create(facade) returns sourcesWatcher
+
+  completionHandlerFactory.create(compilerMock) returns completionHandler
+  compilerFactory.create(any) returns compilerMock
+}
+
+class facadeCompletion(override implicit val system: ActorSystem) extends createdFacade {
+  val source = mock[SourceFile]
+  val position = mock[Position]
+  val offset = 35
   val sourceName = "/src/main/scala/pkg/Source.scala"
   val sourcePath = "/tmp/6157147744291722932"
-  val offset = 35
-  val column = 15
-  var file1Mock = mock[JFile]
-  var file2Mock = mock[JFile]
-  var files = Seq(file1Mock, file2Mock)
-  val configPath = "/tmp/xxx.conf"
-  val classpath = List("lib1.jar", "/tmp/lib2.jar")
-  val sourcesDirs = List("/tmp", "/opt")
+  val completionResult = Seq("map", "toInt", "reduce")
+  completionHandler.complete(meq(position), any) returns completionResult
+  sourceFileFactory.createSourceFile(sourceName, sourcePath) returns source
+  source.position(offset) returns position
+}
 
-  def before = {
-    org.mockito.Mockito.reset(config)
-    org.mockito.Mockito.reset(file1Mock)
-    org.mockito.Mockito.reset(file2Mock)
-    org.mockito.Mockito.reset(configLoader)
-    org.mockito.Mockito.reset(watchService)
-    org.mockito.Mockito.reset(memberInfoExtractorFactory)
-    org.mockito.Mockito.reset(compilerApi)
-    org.mockito.Mockito.reset(compilerFactory)
-    org.mockito.Mockito.reset(completionTypeDetector)
-    org.mockito.Mockito.reset(sourceFileFactory)
-    org.mockito.Mockito.reset(scalaSourcesFinder)
-    org.mockito.Mockito.reset(memberRankCalculator)
-    org.mockito.Mockito.reset(membersFilter)
-    org.mockito.Mockito.reset(sourcesWatchActorFactory)
 
-    file1Mock.getCanonicalPath returns "/tmp/file1.scala"
-    file2Mock.getCanonicalPath returns "/opt/file2.scala"
+class facadeSources(override implicit val system: ActorSystem) extends createdFacade {
+  val sourceFile1 = mock[JFile]
+  val sourceFile2 = mock[JFile]
+  val sourceFiles = List(sourceFile1, sourceFile2)
 
-    config.getStringList("vim.scala-completion.classpath") returns classpath
-    config.getStringList("vim.scala-completion.src-directories") returns sourcesDirs
+  val sourceFile1Path = "/tmp/file1.scala"
+  val sourceFile2Path = "/opt/file2.scala"
+  sourceFile1.getCanonicalPath returns sourceFile1Path
+  sourceFile2.getCanonicalPath returns sourceFile2Path
 
-    configLoader.load(any) returns config
+  val source = mock[SourceFile]
+  sourceFileFactory.createSourceFile(sourceFile1Path) returns source
+  sourceFileFactory.createSourceFile(sourceFile2Path) returns source
+}
 
-    compilerApi.typeCompletion(any, any) returns List()
-    compilerApi.scopeCompletion(any, any) returns List()
+class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
+                      with ImplicitSender
+                      with SpecificationLike
+                      with NoTimeConversions {
 
-    compilerFactory.create(any) returns compilerApi
-
-    sourceFileFactory.createSourceFile(anyString, anyString) returns mock[SourceFile]
-
-    scalaSourcesFinder.findIn(any) returns files
-
-    membersFilter.apply(any, any) returns true
-
-    memberRankCalculator.apply(any, any) returns 0
-
-    sourcesWatcherProbe = TestProbe()
-    sourcesWatcherProbe.setAutoPilot(new TestActor.AutoPilot {
-       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
-         msg match {
-           case SourcesWatchActor.WatchDirs(d) =>
-             sender ! SourcesWatchActor.Watching(d)
-             TestActor.KeepRunning
-           case _ =>
-             TestActor.KeepRunning
-         }
-     })
-    sourcesWatcher = sourcesWatcherProbe.ref
-
-    sourcesWatchActorFactory.create(any) returns sourcesWatcher
-
-    facade = TestActorRef(new FacadeActor[String] {
-      compilerApi = selfSpec.compilerApi
-      val completionTypeDetector = selfSpec.completionTypeDetector
-      extractor = (m: Compiler#Member) => m.toString
-      val sourceFileFactory = selfSpec.sourceFileFactory
-      val membersFilter = selfSpec.membersFilter
-      val memberRankCalculator = selfSpec.memberRankCalculator
-      val scalaSourcesFinder = selfSpec.scalaSourcesFinder
-      val compilerFactory = selfSpec.compilerFactory
-      val configLoader = selfSpec.configLoader
-      val sourcesWatchActorFactory = selfSpec.sourcesWatchActorFactory
-      val memberInfoExtractorFactory = selfSpec.memberInfoExtractorFactory
-      val watchService = selfSpec.watchService
-    })
-  }
+  implicit val timeout = Timeout(5.seconds)
 
   sequential
 
   "facade" should {
     "initialization" should {
-      "load config from provided path" in {
+      val configPath = "/tmp/xxx.conf" //TODO
+
+      "reload sources in path from config" in new facadeInit {
         facade ! Init(configPath)
 
-        there was one(configLoader).load(configPath)
+        there was one(compilerMock).reloadSources(any)
       }
 
-      "create compiler with classpah from config" in {
+      "start watching source dirs from config" in new facadeInit {
         facade ! Init(configPath)
 
-        there was one(compilerFactory).create(classpath.map(new JFile(_)))
+        sourcesWatcherProbe.expectMsgType[SourcesWatchActor.WatchDirs] must_== SourcesWatchActor.WatchDirs(sourceDirsStr)
       }
 
-      "create sources watcher with sources path from config" in {
-        facade ! Init(configPath)
-
-        there was one(sourcesWatchActorFactory).create(facade)
-      }
-
-      "reload sources in path from config" in {
-        facade ! Init(configPath)
-
-        there was one(compilerApi).reloadSources(any)
-      }
-
-      "start watching source dirs from config" in {
-        facade ! Init(configPath)
-
-        sourcesWatcherProbe.expectMsgType[SourcesWatchActor.WatchDirs] must_== SourcesWatchActor.WatchDirs(sourcesDirs)
-      }
-
-      "respond with Initialized message" in {
+      "respond with Initialized message" in new facadeInit {
         val future = facade ? Init(configPath)
 
-        val Success(result) = future.mapTo[Initialized.type].value.get
+        val Success(result: Initialized.type) = future.value.get
         ok
       }
     }
 
     "completion" should {
-      "update source" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
+      //TODO
+      val offset = 35
+      val sourceName = "/src/main/scala/pkg/Source.scala"
+      val sourcePath = "/tmp/6157147744291722932"
+      def completeAt = CompleteAt(sourceName, sourcePath, offset, None)
 
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
+      "respond with completion result" in new facadeCompletion {
+        val future = (facade ? completeAt).mapTo[CompletionResult[String]]
 
-        there was one(compilerApi).reloadSources(any[List[SourceFile]])
+        val Success(result: CompletionResult[String]) = future.value.get
+        result.members must_== completionResult
       }
 
-      "call type completion when detector says type" in  {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
+      "reload source before triggering completion" in new facadeCompletion {
+        facade ! completeAt
 
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(compilerApi).typeCompletion(any[scala.reflect.internal.util.Position], any)
+        there was one(compilerMock).reloadSources(List(source))
       }
 
-      "call scope completion when detector says scope" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Scope
+      "call completion at position from source" in new facadeCompletion {
+        facade ! completeAt
 
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(compilerApi).scopeCompletion(any[scala.reflect.internal.util.Position], any)
-      }
-
-      "not call any completion when detector says no completion" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(compilerApi).reloadSources(any)
-        there were noMoreCallsTo(compilerApi)
-      }
-
-      "return empty seq when no completion" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.NoCompletion
-
-        val future = facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        val Success(result: CompletionResult[String]) = future.mapTo[CompletionResult[String]].value.get
-        result.members must be empty
-      }
-
-      "call completion type detector with correct parameters" in {
-        stubSourceFactory(line = "abc123")
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(completionTypeDetector).detect("abc123", 15)
-      }
-
-      "create source with correct parameters" in {
-        stubSourceFactory()
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(sourceFileFactory).createSourceFile(sourceName, sourcePath)
-      }
-
-      "get position equal to offset for scope completion" in {
-        val source = stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Scope
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(source).position(offset)
-      }
-
-      "get position with offset before dot or space for type completion" in {
-        val source = stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(source).position(offset - 1)
-      }
-
-      "filter members" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
-        compilerApi.typeCompletion[String](any, any) returns Seq("str")
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some("pfx"))
-
-        there was two(membersFilter).apply(Some("pfx"), "str")
-      }
-
-      "rank members" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
-        compilerApi.typeCompletion[String](any, any) returns Seq("str")
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        there was one(memberRankCalculator).apply(any, meq("str"))
-      }
-
-      "rank members with prefix" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
-        compilerApi.typeCompletion[String](any, any) returns Seq("str")
-
-        facade ! CompleteAt(sourceName, sourcePath, offset, column, Some("pfx"))
-
-        there was one(memberRankCalculator).apply(meq(Some("pfx")), any)
-      }
-
-      "sort members by rank desc" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
-        compilerApi.typeCompletion[String](any, any) returns Seq("str", "str2")
-        memberRankCalculator.apply(any, anyString) returns 1 thenReturns 10
-
-        val future = facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        val Success(result: CompletionResult[String]) = future.mapTo[CompletionResult[String]].value.get
-        result.members must_== Seq("str2", "str")
-      }
-
-      "limit result by 15" in {
-        stubSourceFactory()
-        completionTypeDetector.detect(anyString, anyInt) returns CompletionType.Type
-        compilerApi.typeCompletion[String](any, any) returns (1 to 15).map(_.toString)
-
-        val future = facade ? CompleteAt(sourceName, sourcePath, offset, column, Some(""))
-
-        val Success(result: CompletionResult[String]) = future.mapTo[CompletionResult[String]].value.get
-        result.members must have size(15)
-      }
-    }
-
-    "reloading all sources in directories" should {
-      "find sources in directories" in {
-        facade ! ReloadSourcesInDirs(sourcesDirs)
-
-        there was one(scalaSourcesFinder).findIn(List(new JFile("/tmp"), new JFile("/opt")))
-      }
-
-      "create compiler's source files for found sources" in {
-        facade ! ReloadSourcesInDirs(sourcesDirs)
-
-        there was one(sourceFileFactory).createSourceFile("/tmp/file1.scala") andThen one(sourceFileFactory).createSourceFile("/opt/file2.scala")
-      }
-
-      "ask compiler to reload sources" in {
-        facade ! ReloadSourcesInDirs(sourcesDirs)
-
-        there was one(compilerApi).reloadSources(any)
+        there was one(completionHandler).complete(position, None)
       }
     }
 
     "reloading source files" should {
-      "ask compiler to reload sources" in {
+      "ask compiler to reload sources" in new facadeSources {
         facade ! ReloadSources(Seq())
 
-        there was one(compilerApi).reloadSources(any)
+        there was one(compilerMock).reloadSources(any)
       }
     }
 
     "removing source files" should {
-      "ask compiler to remove sources" in {
+      "ask compiler to remove sources" in new facadeSources {
         facade ! RemoveSources(Seq())
 
-        there was one(compilerApi).removeSources(any)
+        there was one(compilerMock).removeSources(any)
       }
     }
-  }
-
-  def stubSourceFactory(lineIdx: Int = 0, line: String = "") = {
-    val mockSourceFile = mock[SourceFile]
-    mockSourceFile.lineToString(anyInt) returns line
-    mockSourceFile.offsetToLine(anyInt) returns lineIdx
-    mockSourceFile.position(anyInt) returns mock[scala.reflect.internal.util.Position]
-    sourceFileFactory.createSourceFile(anyString, anyString) returns mockSourceFile
-    mockSourceFile
   }
 }

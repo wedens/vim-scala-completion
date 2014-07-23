@@ -62,7 +62,7 @@ class SprayApiSpec extends Specification
     "GET /completion" should {
       def completionRequest(prefix: Option[String] = Some("abc")) = {
         val pfx = prefix.map(p => "&prefix=" + p) getOrElse ""
-        Get(s"/completion?offset=25&column=14&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}") ~> apiRoutes
+        Get(s"/completion?offset=25&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}") ~> apiRoutes
       }
 
       "call completion" in {
@@ -77,7 +77,7 @@ class SprayApiSpec extends Specification
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _, 25, 14, _) => ok
+            case CompleteAt(_, _, 25, _) => ok
           }
         }
       }
@@ -86,7 +86,7 @@ class SprayApiSpec extends Specification
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_name, _, _, _, _) => _name must_== path
+            case CompleteAt(_name, _, _, _) => _name must_== path
           }
         }
       }
@@ -95,7 +95,7 @@ class SprayApiSpec extends Specification
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _path, _, _, _) => _path must_== tempPath
+            case CompleteAt(_, _path, _, _) => _path must_== tempPath
           }
         }
       }
@@ -104,7 +104,7 @@ class SprayApiSpec extends Specification
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _, _, _, Some("abc")) => ok
+            case CompleteAt(_, _, _, Some("abc")) => ok
           }
         }
       }
@@ -113,7 +113,7 @@ class SprayApiSpec extends Specification
         transformer.transformCompletion(any) returns ""
         completionRequest(prefix = None) ~> check {
           facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _, _, _, None) => ok
+            case CompleteAt(_, _, _, None) => ok
           }
         }
       }

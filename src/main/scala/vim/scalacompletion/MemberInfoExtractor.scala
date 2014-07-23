@@ -9,11 +9,17 @@ case class MemberInfo(name: String, fullSignature: String,
   isInherited: Option[Boolean] = None)
 
 trait MemberInfoExtractorFactory[T] {
-  def create(compiler: Global): Compiler#Member => T
+  def create(compiler: Global): MemberInfoExtractor[T]
 }
 
 class MemberInfoExtractorFactoryImpl extends MemberInfoExtractorFactory[MemberInfo] {
-  def create(compiler: Global): Compiler#Member => MemberInfo = member => {
+  def create(compiler: Global): MemberInfoExtractor[MemberInfo] = new MemberInfoExtractorForMemberInfo(compiler)
+}
+
+trait MemberInfoExtractor[T] extends (Global#Member => T)
+
+class MemberInfoExtractorForMemberInfo(compiler: Global) extends MemberInfoExtractor[MemberInfo] {
+  def apply(member: Global#Member): MemberInfo = {
     import compiler.definitions
 
     val sym = member.sym
@@ -37,3 +43,4 @@ class MemberInfoExtractorFactoryImpl extends MemberInfoExtractorFactory[MemberIn
       isInherited)
   }
 }
+

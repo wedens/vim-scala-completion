@@ -36,8 +36,8 @@ trait SprayApi[T] extends HttpService {
 
   val apiRoutes = path("completion") {
     get {
-      parameters('name, 'file_path, 'offset.as[Int], 'column.as[Int], 'prefix.?) { (name, filePath, offset, column, prefix) =>
-        val future = (facade ? CompleteAt(name, filePath, offset, column, prefix)).mapTo[CompletionResult[T]].map { result =>
+      parameters('name, 'file_path, 'offset.as[Int], 'prefix.?) { (name, filePath, offset, prefix) =>
+        val future = (facade ? CompleteAt(name, filePath, offset, prefix)).mapTo[CompletionResult[T]].map { result =>
           transformer.transformCompletion(result.members)
         }
         complete(future)
