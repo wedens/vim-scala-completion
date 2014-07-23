@@ -6,6 +6,7 @@ import org.specs2.specification.Scope
 import org.specs2.matcher.ThrownExpectations
 import scala.reflect.internal.util.Position
 import org.mockito.Matchers.{eq => meq}
+import scala.reflect.internal.util.SourceFile
 
 trait completion extends Scope with Mockito with ThrownExpectations {
   val completionTypeDetector = mock[CompletionTypeDetector]
@@ -13,9 +14,11 @@ trait completion extends Scope with Mockito with ThrownExpectations {
   val extractor = mock[MemberInfoExtractor[String]]
   val filter = mock[MemberFilter[String]]
   val memberRankCalculator = mock[MemberRankCalculator[String]]
+  val positionFactory = mock[PositionFactory]
   val handler = new CompletionHandler(completionTypeDetector,
                                       compiler, extractor, filter,
-                                      memberRankCalculator)
+                                      memberRankCalculator,
+                                      positionFactory)
 
   val position = mock[Position]
   filter.apply(any, any) returns true
@@ -29,8 +32,14 @@ trait scopeCompletion extends completion {
 
 trait typeCompletion extends completion {
   val typeCompletionResult = Seq("toString", "map", "foldLeft")
+  val offset = 1
+  val source = mock[SourceFile]
+  val typeCompletionPosition = mock[Position]
+  position.source returns source
+  position.point returns offset
   completionTypeDetector.detect(position) returns CompletionType.Type
-  compiler.typeCompletion[String](position, extractor) returns typeCompletionResult
+  positionFactory.create(source, offset - 1) returns typeCompletionPosition
+  compiler.typeCompletion[String](typeCompletionPosition, extractor) returns typeCompletionResult
 }
 
 class CompletionHandlerSpec extends Specification with Mockito {
@@ -68,6 +77,10 @@ class CompletionHandlerSpec extends Specification with Mockito {
       handler.complete(position, Some(1)) must have size(1)
     }
 
-    "decrease position by 1 for type completion" in pending
+    "decrease position by 1 for type completion" in new typeCompletion {
+      handler.complete(position)
+
+      there was one(positionFactory).create(source, offset - 1)
+    }
   }
 }
