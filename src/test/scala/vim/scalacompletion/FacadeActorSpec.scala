@@ -52,23 +52,12 @@ trait createdFacade extends Scope
   })
 }
 
-class facadeInit(override implicit val system: ActorSystem) extends createdFacade {
+class facadeInit(override implicit val system: ActorSystem) extends facadeSources {
   val sourceDir1 = mock[JFile]
   val sourceDir2 = mock[JFile]
   val sourceDirs = List(sourceDir1, sourceDir2)
 
-  val sourceFile1 = mock[JFile]
-  val sourceFile2 = mock[JFile]
-  val sourceFiles = List(sourceFile1, sourceFile2)
   scalaSourcesFinder.findIn(any) returns sourceFiles
-
-  val source = mock[SourceFile]
-  val sourceFile1Path = "/tmp/file1.scala"
-  val sourceFile2Path = "/opt/file2.scala"
-  sourceFile1.getCanonicalPath returns sourceFile1Path
-  sourceFile2.getCanonicalPath returns sourceFile2Path
-  sourceFileFactory.createSourceFile(sourceFile1Path) returns source
-  sourceFileFactory.createSourceFile(sourceFile2Path) returns source
 
   val configPath = "/tmp/xxx.conf"
   val config = mock[Config]
@@ -120,14 +109,12 @@ class facadeSources(override implicit val system: ActorSystem) extends createdFa
   sourceFileFactory.createSourceFile(sourceFile2Path) returns source
 }
 
-class FacadeActorSpec extends TestKit(ActorSystem("FacadeSpec"))
+class FacadeActorSpec extends TestKit(ActorSystem("FacadeActorSpec"))
                       with ImplicitSender
                       with SpecificationLike
                       with NoTimeConversions {
 
   implicit val timeout = Timeout(5.seconds)
-
-  sequential
 
   "facade" should {
     "initialization" should {
