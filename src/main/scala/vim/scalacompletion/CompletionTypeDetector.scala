@@ -3,6 +3,8 @@ package vim.scalacompletion
 import scala.reflect.api.Position
 
 class CompletionTypeDetector {
+  val scopeKeywords = Seq("case", "new", "yield", "extends", "with").map(_.reverse)
+
   def detect(position: Position): CompletionType = {
     detect(position.lineContent, position.column)
   }
@@ -33,7 +35,7 @@ class CompletionTypeDetector {
           withoutSpaces.headOption match {
             case None => CompletionType.Scope
             case Some(';') => CompletionType.Scope
-            case Some(_) if withoutSpaces.startsWith("case".reverse) => CompletionType.Scope
+            case Some(_) if scopeKeywords.exists(withoutSpaces.startsWith(_)) => CompletionType.Scope
             case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
             case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
             case _ => CompletionType.Scope

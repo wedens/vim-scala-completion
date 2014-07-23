@@ -90,6 +90,30 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.indexOf("=>") - 1) must_== CompletionType.Scope
     }
 
+    "detect scope after new statement" in {
+      val line = "val x = new "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after extends statement" in {
+      val line = "class MyClass extends "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after with statement" in {
+      val line = "class MyClass extends Base with "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after yield statement" in {
+      val line = "for (x <- y) yield "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
     "not detect completion after dot inside string" in {
        val line = "val str = \"some. string\""
 
