@@ -90,6 +90,18 @@ class CompilerApiSpec extends Specification {
       compiler.typeCompletion(position, nameExtractor) must contain("head")
     }
 
+    "return scope members after infix call" in {
+      val (position, _) = completionExample {
+        """
+        def idInt(x: Int) = x
+        val list = List(1, 2)
+        list map$
+        """
+      }
+
+      compiler.scopeCompletion(position, nameExtractor) must contain("idInt")
+    }
+
     "return package members on type completion in imports" in {
       val (position, source) = completionExample {
         """
