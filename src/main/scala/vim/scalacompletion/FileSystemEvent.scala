@@ -6,7 +6,8 @@ object FileSystemEvents {
   trait FileSystemEvent {
     val fileOrDirectory: File
   }
-  case class Created(fileOrDirectory: File) extends FileSystemEvent
-  case class Deleted(fileOrDirectory: File) extends FileSystemEvent
-  case class Modifyed(fileOrDirectory: File) extends FileSystemEvent
+  case class Created(override val fileOrDirectory: File) extends FileSystemEvent
+  case class Deleted(override val fileOrDirectory: File) extends FileSystemEvent
+  case class Modifyed(override val fileOrDirectory: File) extends FileSystemEvent
+  case TestCase
 }
