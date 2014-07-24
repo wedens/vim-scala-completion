@@ -9,5 +9,4 @@ object FileSystemEvents {
   case class Created(override val fileOrDirectory: File) extends FileSystemEvent
   case class Deleted(override val fileOrDirectory: File) extends FileSystemEvent
   case class Modifyed(override val fileOrDirectory: File) extends FileSystemEvent
-  case TestCase
 }
