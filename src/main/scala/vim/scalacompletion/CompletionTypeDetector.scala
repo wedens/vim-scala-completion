@@ -38,6 +38,8 @@ class CompletionTypeDetector {
             case Some(_) if scopeKeywords.exists(withoutSpaces.startsWith(_)) => CompletionType.Scope
             // .*case .* if
             case Some(_) if withoutSpaces.matches("fi .* esac.*") => CompletionType.Scope
+            // .*import .*{.*
+            case Some(_) if withoutSpaces.matches(".*\\{.* tropmi.*") => CompletionType.Type
             case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
             case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
             case _ => CompletionType.Scope

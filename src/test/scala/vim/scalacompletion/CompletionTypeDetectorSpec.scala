@@ -132,6 +132,12 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
+    "detect type completion in import with curly braces" in {
+      val line = "import scalaz.{Monad, }"
+
+      detector.detect(line, line.length - 2) must_== CompletionType.Type
+    }
+
     "detect scope completion after $ inside interpolated string" in {
       val line = "s\"some text $ \""
 
