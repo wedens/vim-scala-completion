@@ -2,7 +2,7 @@ package vim.scalacompletion
 
 import scala.reflect.api.Position
 
-class CompletionTypeDetector {
+class CompletionTypeDetector extends WithLog {
   val scopeKeywords = Seq("case", "new", "yield", "extends", "with").map(_.reverse)
 
   def detect(position: Position): CompletionType = {
@@ -10,6 +10,10 @@ class CompletionTypeDetector {
   }
 
   def detect(line: String, pos: Int): CompletionType = {
+    val charAtPosMsg = if (pos < line.length) line.charAt(pos) else ""
+    logg.debug(s"Detecting completion type at column: $pos ($charAtPosMsg), line: " +
+      "\"" + line + "\"")
+
     val (beforePosAndPos, afterPos) = line.splitAt(pos + 1)
     // val atPos = beforePosAndPos.last
     val beforePos = beforePosAndPos.init
