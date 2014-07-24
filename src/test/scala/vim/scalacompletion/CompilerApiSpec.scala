@@ -14,15 +14,7 @@ class CompilerApiSpec extends Specification {
   def jars = Seq(
     new JFile(getClass().getResource(rtJarPath).toURI),
     new JFile(getClass().getResource(scalaLibJarPath).toURI),
-    new JFile(getClass().getResource(scalazJarPath).toURI),
-    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-routing_2.11/bundles/spray-routing_2.11-1.3.1.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/com.chuusai/shapeless_2.11/jars/shapeless_2.11-1.2.4.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/com.typesafe.akka/akka-actor_2.11/jars/akka-actor_2.11-2.3.4.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-can_2.11/bundles/spray-can_2.11-1.3.1.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-io_2.11/bundles/spray-io_2.11-1.3.1.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-util_2.11/bundles/spray-util_2.11-1.3.1.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-http_2.11/bundles/spray-http_2.11-1.3.1.jar"),
-    new JFile("/Users/wedens/.ivy2/cache/io.spray/spray-httpx_2.11/bundles/spray-httpx_2.11-1.3.1.jar")
+    new JFile(getClass().getResource(scalazJarPath).toURI)
   )
 
   val compilerFactory = new CompilerFactoryImpl()
@@ -54,7 +46,7 @@ class CompilerApiSpec extends Specification {
       compiler.reloadSources(List(source)) must beLeft
     }
 
-    "do type completion" in {
+    "return members of local variable on type completion" in {
       val (position, source) = completionExample {
         """val str = "some string"
         str$.
@@ -64,7 +56,7 @@ class CompilerApiSpec extends Specification {
       compiler.typeCompletion(position, nameExtractor) must contain("substring")
     }
 
-    "do scope completion" in {
+    "return locally defined class on scope completion" in {
       val (position, source) = completionExample {
         """case class MyCaseClass(x: Int)
           $
@@ -74,7 +66,7 @@ class CompilerApiSpec extends Specification {
       compiler.scopeCompletion(position, nameExtractor) must contain("MyCaseClass")
     }
 
-    "do type completion inside of method call" in {
+    "return type members on type completion in method call" in {
       val (position, source) = completionExample {
         """val list = Seq(1,2)
         def add(x: Int, y: Int): Int = x + y
@@ -85,16 +77,26 @@ class CompilerApiSpec extends Specification {
       compiler.typeCompletion(position, nameExtractor) must contain("head")
     }
 
-    "do type completion inside of method call with 2 params by name" in pending {
+    "return type members on method call with incomplete argument list" in pending {
       val (position, source) = completionExample {
         """
         implicit class OptionW[T](opt: Option[T]) {
           def cata[A](some: T => A, none: A) = opt.map(some) getOrElse none
         }
-        Option(List(1,2)).cata(_$.)"""
+        Option(List(1,2)).cata(some = l => l$.)"""
       }
 
       compiler.typeCompletion(position, nameExtractor) must contain("head")
+    }
+
+    "return package members on type completion in imports" in {
+      val (position, source) = completionExample {
+        """
+        import scalaz.{Monad, $}
+        """
+      }
+
+      compiler.typeCompletion(position, nameExtractor) must contain("Monoid")
     }
 
     "remove sources" in {
