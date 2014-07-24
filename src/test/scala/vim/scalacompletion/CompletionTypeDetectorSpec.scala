@@ -7,12 +7,12 @@ class CompletionTypeDetectorSpec extends Specification {
 
   "completion type detector" should {
     "detect type completion after ." in {
-      val line = "str."
+      val line = "str. "
 
-      detector.detect(line, line.indexOf(".")) must_== CompletionType.Type
+      detector.detect(line, line.length - 1) must_== CompletionType.Type
     }
 
-    "detect scope completion on empty line" in  {
+    "detect scope completion on blank line" in  {
       val line = " " * 5
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
@@ -179,6 +179,12 @@ class CompletionTypeDetectorSpec extends Specification {
       val line = "val future = (facade ? completeAt()).mapTo[CompletionResult[String]]. "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Type
+    }
+
+    "detect type completion with out of bound position" in {
+      val line = "    case FileSystemEvents."
+
+      detector.detect(line, line.length) must_== CompletionType.Type
     }
   }
 }

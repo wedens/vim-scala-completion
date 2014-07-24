@@ -3,7 +3,14 @@ package vim.scalacompletion
 import scala.reflect.api.Position
 
 class CompletionTypeDetector extends WithLog {
-  val scopeKeywords = Seq("case", "new", "yield", "extends", "with").map(_.reverse)
+  val scopeKeywords = Seq("if", "case", "new", "yield", "extends", "with").map(_.reverse)
+
+  def isIdentifierChar(ch: String) = {
+    val positive = "[\\p{L}0-9\\p{Punct}\\p{Sm}]".r
+    val exclude = "[^()\\[\\];.,{}\"'$]".r
+
+    exclude.findFirstIn(ch).isDefined && positive.findFirstIn(ch).isDefined
+  }
 
   def detect(position: Position): CompletionType = {
     detect(position.lineContent, position.column - 1)
@@ -15,7 +22,8 @@ class CompletionTypeDetector extends WithLog {
       "\"" + line + "\"")
 
     val (beforePosAndPos, afterPos) = line.splitAt(pos + 1)
-    // val atPos = beforePosAndPos.last
+    val atPos = beforePosAndPos.last
+    if (pos >= line.length && atPos == '.') return CompletionType.Type
     val beforePos = beforePosAndPos.init
     val lineBeforePosReversed = beforePos.reverse
 
@@ -36,22 +44,24 @@ class CompletionTypeDetector extends WithLog {
         case _ => CompletionType.NoCompletion
       }
     } else {
-      lineBeforePosReversed.headOption match {
+      val withoutSpaces = lineBeforePosReversed.dropWhile(_.isSpaceChar)
+      withoutSpaces.headOption match {
+        // type completion after identifier with following dot
         case Some('.') => CompletionType.Type
-        case _ =>
-          val withoutSpaces = lineBeforePosReversed.dropWhile(_.isSpaceChar)
-          withoutSpaces.headOption match {
-            case None => CompletionType.Scope
-            case Some(';') => CompletionType.Scope
-            case Some(_) if scopeKeywords.exists(withoutSpaces.startsWith(_)) => CompletionType.Scope
-            // .*case .* if
-            case Some(_) if withoutSpaces.matches("fi .* esac.*") => CompletionType.Scope
-            // .*import .*{.*
-            case Some(_) if withoutSpaces.matches(".*\\{.* tropmi.*") => CompletionType.Type
-            case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
-            case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
-            case _ => CompletionType.Scope
-          }
+        // empty line before completion position
+        case None => CompletionType.Scope
+        // scope completion after ';' separator
+        case Some(';') => CompletionType.Scope
+        // after: 'if', 'with' etc
+        case Some(_) if scopeKeywords.exists(withoutSpaces.startsWith(_)) => CompletionType.Scope
+        // inside '{}' in import: import pkg.nest.{}
+        // TODO: better regex
+        case Some(_) if withoutSpaces.matches(".*\\{.* tropmi.*") => CompletionType.Type
+        // complete infix method parameter
+        case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
+        // complete infix members
+        case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
+        case _ => CompletionType.Scope
       }
     }
   }
