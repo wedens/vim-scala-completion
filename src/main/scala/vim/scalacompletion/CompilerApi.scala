@@ -22,7 +22,9 @@ trait CompilerApi extends WithLog { self: Global =>
         ask { () =>
           matches map extractor
         }
-      case Right(ex) => throw ex
+      case Right(ex) =>
+        logg.debug("Exception during type completion", ex)
+        Seq.empty
     }
   }
 
@@ -32,7 +34,9 @@ trait CompilerApi extends WithLog { self: Global =>
         ask { () =>
           matches map extractor
         }
-      case Right(ex) => throw ex
+      case Right(ex) =>
+        logg.debug("Exception during scope completion", ex)
+        Seq.empty
     }
   }
 
