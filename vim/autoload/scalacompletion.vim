@@ -31,7 +31,12 @@ fu! scalacompletion#Start()
     echoerr "Unexpected response from server: ".response_str
     return
   endif
+
   autocmd FileType scala setlocal omnifunc=scalacompletion#Complete
+  if &ft == 'scala'
+    setlocal omnifunc=scalacompletion#Complete
+  endif
+
   echom "Project started successfuly"
 endfu
 
