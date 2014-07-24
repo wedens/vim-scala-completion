@@ -10,6 +10,7 @@ class CompilerApiSpec extends Specification {
   val scalaLibJarPath = "/scala-library-2.11.1.jar"
   val scalazJarPath = "/scalaz-core_2.11-7.0.6.jar"
 
+  args(skipAll = true)
 
   def jars = Seq(
     new JFile(getClass().getResource(rtJarPath).toURI),
