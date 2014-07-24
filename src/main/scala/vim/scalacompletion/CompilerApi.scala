@@ -13,7 +13,11 @@ trait CompilerApi extends WithLog { self: Global =>
 
   def reloadSources(sources: List[SourceFile]) = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
-    withResponse[Unit](r => askReload(sources, r)).get
+    try {
+      withResponse[Unit](r => askReload(sources, r)).get
+    } catch {
+      case ex: Throwable => logg.debug("Exception while removing sources", ex)
+    }
   }
 
   def typeCompletion[T](position: Position, extractor: Member => T): Seq[T] = {
@@ -42,7 +46,11 @@ trait CompilerApi extends WithLog { self: Global =>
 
   def removeSources(sources: List[SourceFile]) = {
     logg.debug(s"Removing sources: ${sources.mkString(",")}")
-    withResponse[Unit](r => askFilesDeleted(sources, r)).get
+    try {
+      withResponse[Unit](r => askFilesDeleted(sources, r)).get
+    } catch {
+      case ex: Throwable => logg.debug("Exception while removing sources", ex)
+    }
   }
 
   private def withResponse[A](op: Response[A] => Any): Response[A] = {

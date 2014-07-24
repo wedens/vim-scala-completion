@@ -44,7 +44,8 @@ class CompilerApiSpec extends Specification {
     "add sources" in {
       val source = createSource("object app { println(\"x\") }")
 
-      compiler.reloadSources(List(source)) must beLeft
+      compiler.reloadSources(List(source))
+      ok
     }
 
     "return members of local variable on type completion" in {
@@ -116,7 +117,8 @@ class CompilerApiSpec extends Specification {
       val source = createSource("object app { println(\"x\") }")
       compiler.reloadSources(List(source))
 
-      compiler.removeSources(List(source)) must beLeft
+      compiler.removeSources(List(source))
+      ok
     }
   }
 }
