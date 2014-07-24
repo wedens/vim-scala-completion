@@ -126,6 +126,12 @@ class CompletionTypeDetectorSpec extends Specification {
        detector.detect(line, line.indexOf("+") + 2) must_== CompletionType.Scope
     }
 
+    "detect scope completion after if in case statement" in {
+      val line = "  case Some(list) if "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
     "detect scope completion after $ inside interpolated string" in {
       val line = "s\"some text $ \""
 
