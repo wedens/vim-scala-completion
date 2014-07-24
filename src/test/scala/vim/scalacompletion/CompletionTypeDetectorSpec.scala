@@ -150,6 +150,13 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.indexOf("if") + 2) must_== CompletionType.Scope
 
     }
+
+    "detect type completion in import" in {
+      val line = "import scalaz. "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Type
+    }
+
     "detect type completion in import with curly braces" in {
       val line = "import scalaz.{Monad, }"
 
@@ -166,6 +173,12 @@ class CompletionTypeDetectorSpec extends Specification {
       val line = "add(list.)"
 
       detector.detect(line, line.indexOf('.') + 1) must_== CompletionType.Type
+    }
+
+    "detect type completion after parametrized method" in {
+      val line = "val future = (facade ? completeAt()).mapTo[CompletionResult[String]]. "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Type
     }
   }
 }
