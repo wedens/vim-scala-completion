@@ -36,7 +36,7 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.length - 1) must_== CompletionType.Type
     }
 
-    "detect scope completion after infix method call" in {
+    "detect scope completion after symbolic infix method call" in {
       val line = "someVar |@|  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
@@ -48,10 +48,16 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
-    "detect scope completion iside of []" in {
-      val line = "type X[T] = Either[T, ]"
+    "detect scope completion after infix method call" in {
+      val line = "      matches flatMap  "
 
-      detector.detect(line, line.length - 3) must_== CompletionType.Scope
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope completion iside of []" in {
+      val line = "type X[T] = Either[T,  ]"
+
+      detector.detect(line, line.indexOf(",") + 2) must_== CompletionType.Scope
     }
 
     "detect scope completion inside function arguments" in {
@@ -61,19 +67,19 @@ class CompletionTypeDetectorSpec extends Specification {
     }
 
     "detect type completion in the middle of expression" in {
-       val line = "f(). match"
+       val line = "f().  match"
 
-       detector.detect(line, line.indexOf(".")) must_== CompletionType.Type
+       detector.detect(line, line.indexOf(".") + 1) must_== CompletionType.Type
     }
 
     "detect type completion in the middle of expression with infix operator" in {
        val line = "val list = x   y :: z :: Nil"
 
-       detector.detect(line, line.indexOf("x") + 3) must_== CompletionType.Type
+       detector.detect(line, line.indexOf("x") + 2) must_== CompletionType.Type
     }
 
     "detect scope completion in the middle of type expression" in {
-      val line = "type X[T] = ValidationNel[ ,Option[T]]"
+      val line = "type X[T] = ValidationNel[ , Option[T]]"
 
       detector.detect(line, line.indexOf(",") - 1) must_== CompletionType.Scope
     }
@@ -81,35 +87,41 @@ class CompletionTypeDetectorSpec extends Specification {
     "detect scope in the middle of case expression" in {
       val line = "  case Some(value) if value ==   => value"
 
-      detector.detect(line, line.indexOf("=>") - 1) must_== CompletionType.Scope
+      detector.detect(line, line.indexOf("=>") - 2) must_== CompletionType.Scope
     }
 
-    "detect scope after case statement" in {
+    "detect scope in between  case statement" in {
       val line = "  case   =>"
 
-      detector.detect(line, line.indexOf("=>") - 1) must_== CompletionType.Scope
+      detector.detect(line, line.indexOf("=>") - 2) must_== CompletionType.Scope
     }
 
     "detect scope after new statement" in {
-      val line = "val x = new "
+      val line = "val x = new  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
     "detect scope after extends statement" in {
-      val line = "class MyClass extends "
+      val line = "class MyClass extends  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
+    "detect scope in between extends statement and other code" in {
+      val line = "class MyClass extends   with Log"
+
+      detector.detect(line, line.indexOf("extends") + 2) must_== CompletionType.Scope
+    }
+
     "detect scope after with statement" in {
-      val line = "class MyClass extends Base with "
+      val line = "class MyClass extends Base with  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
     "detect scope after yield statement" in {
-      val line = "for (x <- y) yield "
+      val line = "for (x <- y) yield  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
@@ -127,11 +139,17 @@ class CompletionTypeDetectorSpec extends Specification {
     }
 
     "detect scope completion after if in case statement" in {
-      val line = "  case Some(list) if "
+      val line = "  case Some(list) if  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
+    "detect scope completion in between if in case statement and =>" in {
+      val line = "  case Some(list) if   =>"
+
+      detector.detect(line, line.indexOf("if") + 2) must_== CompletionType.Scope
+
+    }
     "detect type completion in import with curly braces" in {
       val line = "import scalaz.{Monad, }"
 
@@ -141,7 +159,13 @@ class CompletionTypeDetectorSpec extends Specification {
     "detect scope completion after $ inside interpolated string" in {
       val line = "s\"some text $ \""
 
-      detector.detect(line, line.indexOf("$")) must_== CompletionType.Scope
+      detector.detect(line, line.indexOf("$") + 1) must_== CompletionType.Scope
+    }
+
+    "detect type completion in method call" in {
+      val line = "add(list.)"
+
+      detector.detect(line, line.indexOf('.') + 1) must_== CompletionType.Type
     }
   }
 }

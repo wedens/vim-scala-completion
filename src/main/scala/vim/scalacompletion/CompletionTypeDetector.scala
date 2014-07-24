@@ -6,19 +6,23 @@ class CompletionTypeDetector {
   val scopeKeywords = Seq("case", "new", "yield", "extends", "with").map(_.reverse)
 
   def detect(position: Position): CompletionType = {
-    detect(position.lineContent, position.column)
+    detect(position.lineContent, position.column - 1)
   }
 
   def detect(line: String, pos: Int): CompletionType = {
-    val (beforePos, afterPos) = line.splitAt(pos + 1)
+    val (beforePosAndPos, afterPos) = line.splitAt(pos + 1)
+    // val atPos = beforePosAndPos.last
+    val beforePos = beforePosAndPos.init
     val lineBeforePosReversed = beforePos.reverse
 
     def isInfix(str: String) = {
-      val skipWord = str.dropWhile(!_.isSpaceChar)
-      skipWord.headOption match {
-        case Some(ch) if ch.isLetterOrDigit => true
-        case _ => false
-      }
+      val wordRemoved = str.dropWhile(!_.isSpaceChar)
+      val somethingBeforeSpace = wordRemoved.length - 1 > 0
+      if (somethingBeforeSpace) {
+        val withoutSpace = wordRemoved.tail
+        val looksLikeIdentifierBeforeSpace = withoutSpace.head.isLetterOrDigit
+        looksLikeIdentifierBeforeSpace
+      } else false
     }
 
     val insideOfString = lineBeforePosReversed.count(_ == '"') % 2 != 0
@@ -40,8 +44,8 @@ class CompletionTypeDetector {
             case Some(_) if withoutSpaces.matches("fi .* esac.*") => CompletionType.Scope
             // .*import .*{.*
             case Some(_) if withoutSpaces.matches(".*\\{.* tropmi.*") => CompletionType.Type
-            case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
             case Some(_) if isInfix(withoutSpaces) => CompletionType.Scope
+            case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
             case _ => CompletionType.Scope
           }
       }
