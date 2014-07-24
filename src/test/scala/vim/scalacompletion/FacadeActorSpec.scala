@@ -88,7 +88,10 @@ class facadeCompletion(override implicit val system: ActorSystem) extends create
   val sourceName = "/src/main/scala/pkg/Source.scala"
   val sourcePath = "/tmp/6157147744291722932"
   val completionResult = Seq("map", "toInt", "reduce")
-  completionHandler.complete(meq(position), any) returns completionResult
+  val prefix = Some("to")
+  val completionResultWithPrefix = Seq("toInt")
+  completionHandler.complete(meq(position), any, meq(Some(50))) returns completionResult
+  completionHandler.complete(position, prefix, Some(50)) returns completionResultWithPrefix
   sourceFileFactory.createSourceFile(sourceName, sourcePath) returns source
   source.position(offset) returns position
 }
@@ -145,25 +148,33 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeActorSpec"))
       val offset = 35
       val sourceName = "/src/main/scala/pkg/Source.scala"
       val sourcePath = "/tmp/6157147744291722932"
-      def completeAt = CompleteAt(sourceName, sourcePath, offset, None)
+      def completeAt(prefix: Option[String] = None) =
+        CompleteAt(sourceName, sourcePath, offset, prefix)
 
       "respond with completion result" in new facadeCompletion {
-        val future = (facade ? completeAt).mapTo[CompletionResult[String]]
+        val future = (facade ? completeAt()).mapTo[CompletionResult[String]]
 
         val Success(result: CompletionResult[String]) = future.value.get
         result.members must_== completionResult
       }
 
       "reload source before triggering completion" in new facadeCompletion {
-        facade ! completeAt
+        facade ! completeAt()
 
         there was one(compilerMock).reloadSources(List(source))
       }
 
       "call completion at position from source" in new facadeCompletion {
-        facade ! completeAt
+        facade ! completeAt()
 
-        there was one(completionHandler).complete(position, None)
+        there was one(completionHandler).complete(meq(position), any, any)
+      }
+
+      "respond with completion result when prefix exists" in new facadeCompletion {
+        val future = (facade ? completeAt(prefix)).mapTo[CompletionResult[String]]
+
+        val Success(result: CompletionResult[String]) = future.value.get
+        result.members must_== completionResultWithPrefix
       }
     }
 

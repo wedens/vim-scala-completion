@@ -24,7 +24,8 @@ class CompletionHandler[T](
                 memberRankCalculator: MemberRankCalculator[T],
                 positionFactory: PositionFactory) extends WithLog {
 
-  def complete(position: Position, maxResults: Option[Int] = None): Seq[T] = {
+  def complete(position: Position, prefix: Option[String] = None,
+                                   maxResults: Option[Int] = None): Seq[T] = {
     val completionType = completionTypeDetector.detect(position)
     val members = completionType match {
       case CompletionType.Type =>
@@ -34,11 +35,11 @@ class CompletionHandler[T](
       case _ => Seq.empty
     }
 
-    val membersFilterWithPrefix = (membersFilter.apply _).curried(None)
+    val membersFilterWithPrefix = (membersFilter.apply _).curried(prefix)
     val filteredMembers = members.filter(membersFilterWithPrefix)
     logg.debug(s"$completionType: Found ${members.length} members. ${filteredMembers.length} filtered.")
 
-    val rankCalculatorWithPrefix = (memberRankCalculator.apply _).curried(None)
+    val rankCalculatorWithPrefix = (memberRankCalculator.apply _).curried(prefix)
     val sortedByRank = filteredMembers.sortBy(-rankCalculatorWithPrefix(_))
 
     maxResults.map(sortedByRank.take(_)) getOrElse sortedByRank

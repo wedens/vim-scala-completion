@@ -31,7 +31,7 @@ trait scopeCompletion extends completion {
 }
 
 trait typeCompletion extends completion {
-  val typeCompletionResult = Seq("toString", "map", "foldLeft")
+  val typeCompletionResult = Seq("toString", "map", "foldLeft", "foldRight")
   val offset = 1
   val source = mock[SourceFile]
   val typeCompletionPosition = mock[Position]
@@ -59,22 +59,48 @@ class CompletionHandlerSpec extends Specification with Mockito {
       handler.complete(position) must be empty
     }
 
-    "filter completion result" in new typeCompletion {
-      filter.apply(any, any) returns true
-      filter.apply(any, meq("toString")) returns false
+    "filter completion result without prefix" in new typeCompletion {
+      filter.apply(meq(None), any) returns true
+      filter.apply(None, "toString") returns false
 
-      handler.complete(position) must_== Seq("map", "foldLeft")
+      handler.complete(position) must_== typeCompletionResult.filter(_ != "toString")
     }
 
-    "sort members by rank" in new typeCompletion {
-      memberRankCalculator.apply(any, any) returns 0
-      memberRankCalculator.apply(any, meq("foldLeft")) returns 10
+    "filter completion result with respect to prefix" in new typeCompletion {
+      val prefix = Some("fold")
+      val expectedResult = Seq("foldLeft", "foldRight")
+      filter.apply(meq(prefix), any) returns false
+      filter.apply(prefix, "foldLeft") returns true
+      filter.apply(prefix, "foldRight") returns true
 
-      handler.complete(position) must_== Seq("foldLeft", "toString", "map")
+      handler.complete(position, prefix) must_== expectedResult
+    }
+
+    "sort members by rank without prefix" in new typeCompletion {
+      val highestRankMember = "foldLeft"
+      val expectedResult = Seq(highestRankMember) ++
+                           typeCompletionResult.filter(_ != highestRankMember)
+      memberRankCalculator.apply(any, any) returns 0
+      memberRankCalculator.apply(any, meq(highestRankMember)) returns 100
+
+      handler.complete(position) must_== expectedResult
+    }
+
+    "sort members by rank with respect to prefix" in new typeCompletion {
+      val prefix = Some("fold")
+      val highestRankMembers = Seq("foldLeft", "foldRight")
+      val expectedResult = highestRankMembers ++
+                            typeCompletionResult.filterNot(highestRankMembers.contains(_))
+      filter.apply(any, any) returns true
+      memberRankCalculator.apply(meq(prefix), any) returns 0
+      memberRankCalculator.apply(prefix, highestRankMembers(0)) returns 100
+      memberRankCalculator.apply(prefix, highestRankMembers(1)) returns 99
+
+      handler.complete(position, prefix) must_== expectedResult
     }
 
     "limit result by 1" in new typeCompletion {
-      handler.complete(position, Some(1)) must have size(1)
+      handler.complete(position, maxResults = Some(1)) must have size(1)
     }
 
     "decrease position by 1 for type completion" in new typeCompletion {

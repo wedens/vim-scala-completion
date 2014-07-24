@@ -24,8 +24,7 @@ class FacadeActorImpl(watchService: WatchService) extends FacadeActor[MemberInfo
   override val scalaSourcesFinder = new ScalaSourcesFinder
   override val configLoader = new ConfigLoader()
   override val sourcesWatchActorFactory = new SourcesWatchActorFactory(context, scalaSourcesFinder, watchService)
-  //TODO
-  override val completionHandlerFactory = new CompletionHandlerFactoryForMemberInfo(null)
+  override val completionHandlerFactory = new CompletionHandlerFactoryForMemberInfo(new MemberInfoExtractorFactoryImpl)
 }
 
 trait FacadeActor[MemberInfoType] extends Actor with WithLog {
@@ -58,7 +57,7 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
     compiler.reloadSources(List(source))
 
     val position = source.position(offset)
-    val members = completionHandler.complete(position, None)
+    val members = completionHandler.complete(position, prefix, Some(50))
     sender ! CompletionResult(members)
   }
 
