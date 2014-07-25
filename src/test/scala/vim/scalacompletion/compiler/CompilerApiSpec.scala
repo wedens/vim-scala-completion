@@ -112,63 +112,21 @@ class CompilerApiSpec extends Specification {
       compiler.typeCompletion(position, nameExtractor) must contain("Monoid")
     }
 
+    // "getTypeAt test" in {
+    //   val (position, source) = completionExample {
+    //     """
+    //     """
+    //   }
+
+    //   println(compiler.showRaw(compiler.getTypeAt(position)))
+    //   ok
+    // }
+
     "remove sources" in {
       val source = createSource("object app { println(\"x\") }")
       compiler.reloadSources(List(source))
 
       compiler.removeSources(List(source))
-      ok
-    }
-
-
-    "" in {
-      // Import(Ident(scalaz), List(ImportSelector(TermName("Monad"), 46, TermName("Monad"), 46), ImportSelector(termNames.ERROR, 53, termNames.ERROR, 53)))
-      // val (position, source) = completionExample {
-      //   """import scalaz.{Monad, $}"""
-      // }
-
-
-      // Apply(TypeApply(Select(Select(This(TypeName("app")), TermName("list")), TermName("map")), List(TypeTree(), TypeTree())), List())
-      // val (position, source) = completionExample {
-      //   """val list = Seq(1,2)
-      //   list.map($)
-      //   """
-      // }
-
-
-
-      // CaseDef(Apply(TypeTree().setOriginal(Select(Ident(scala), scala.Some)), List(Bind(TermName("value"), Ident(termNames.WILDCARD)))), Select(Ident(TermName("value")), [TermName("<error: value ==>") aka TermName("$eq$eq")]), Ident(TermName("value")))
-      // val (position, source) = completionExample {
-      //   """Option(3) match {
-      //     case Some(value) if value == $ => value
-      //   }
-      //   """
-      // }
-
-
-      // Template(List(TypeTree(), TypeTree().setOriginal(Select(Ident(scala), scala.App))), noSelfType, List(DefDef(Modifiers(), termNames.CONSTRUCTOR, List(), List(List()), TypeTree(), Block(List(Apply(Select(Super(This(TypeName("app")), typeNames.EMPTY), termNames.CONSTRUCTOR), List())), Literal(Constant(())))), ValDef(Modifiers(), TermName("list "), TypeTree(), Literal(Constant(1)))))
-      // val (position, source) = completionExample {
-      //   """
-      //   val list = 1 $ 3 :: 4 :: Nil
-      //   """
-      // }
-
-      // Apply(Select(Literal(Constant("some string")), TermName("$plus")), List(Select(Literal(Constant("another string")), <TermName("unary_$plus"): error>)))
-      // val (position, source) = completionExample {
-      //   """
-      //   val str = "some string" + $ + "another string"
-      //   """
-      // }
-
-      val (position, source) = completionExample {
-        """
-        class X extends Y with T {
-          def f(x: Int) = x.$
-        }
-        """
-      }
-
-      println(compiler.askType(position))
       ok
     }
   }

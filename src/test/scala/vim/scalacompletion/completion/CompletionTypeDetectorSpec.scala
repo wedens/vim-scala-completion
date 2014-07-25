@@ -1,220 +1,97 @@
 package vim.scalacompletion.completion
 
 import org.specs2.mutable._
+import org.specs2.specification.Scope
+import org.specs2.mock._
+import org.specs2.matcher.ThrownExpectations
+import scala.reflect.api.Position
+import scala.tools.nsc.interactive.Global
+import vim.scalacompletion.compiler.Compiler
+import vim.scalacompletion.compiler.CompilerApi
+import CompletionType._
+import CompletionContext._
+
+trait detector extends Scope with ThrownExpectations with Mockito {
+  val compiler: Global = mock[Compiler]
+  val compilerApi: CompilerApi = mock[CompilerApi]
+
+  val detector = new CompletionTypeDetector(compiler, compilerApi)
+
+  val position = mock[Global#Position]
+}
 
 class CompletionTypeDetectorSpec extends Specification {
-  val detector = new CompletionTypeDetector
-
   "completion type detector" should {
-    "detect type completion after ." in {
-      val line = "str. "
+    "detect type completion after import with selector" in new detector {
+      val tree = compiler.Import(mock[compiler.Select], List())
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
+      detector.detectAt(position) must_== Type(Some(ImportContext))
     }
 
-    "detect scope completion on blank line" in  {
-      val line = " " * 5
+    "detect scope completion after import without selector" in new detector {
+      val tree = compiler.Import(compiler.EmptyTree, List())
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+      detector.detectAt(position) must_== Scope(Some(ImportContext))
     }
 
-    "detect scope completion after ;" in {
-      val line = "str.toString(); "
+    "detect scope completion after 'with' or 'extends'" in new detector {
+      val tree = compiler.Template(List(), compiler.noSelfType, List())
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.indexOf(" ")) must_== CompletionType.Scope
+      detector.detectAt(position) must_== Scope(Some(TypeNameContext))
     }
 
-    "detect type completion after word with following spaces" in {
-      val line = "str      "
+    "detect type completion after dot" in new detector {
+      val tree = compiler.Select(compiler.EmptyTree, mock[compiler.Name])
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
+      detector.detectAt(position) must_== Type(Some(MemberSelectionContext))
     }
 
-    "detect type completion after" in {
-      val line = "str "
+    "detect scope completion after 'new'" in new detector {
+      val tree = compiler.New(compiler.EmptyTree)
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
+      detector.detectAt(position) must_== Scope(Some(NewContext))
     }
 
-    "detect type completion after word with preceeding spaces" in {
-      val line = "   str  "
+    "detect scope completion inside []" in new detector{
+      val tree = compiler.Ident(mock[compiler.TypeName])
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
+      detector.detectAt(position) must_== Scope(Some(TypeNameContext))
     }
 
-    "detect scope completion after infix method call" in {
-      val line = "someVar |@|  "
+    "detect type after dot inside method application" in new detector {
+      val tree = compiler.Apply(mock[compiler.Select], List())
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+      detector.detectAt(position) must_== Type(Some(MemberSelectionContext))
     }
 
-    "detect scope completion after math symbol infix method call" in {
-      val line = "someVar ∘∘  "
+    "detect scope after 'new' inside method application" in new detector {
+      val tree = compiler.Apply(mock[compiler.New], List())
+      compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+      detector.detectAt(position) must_== Scope(Some(NewContext))
     }
 
-    "detect scope completion after infix method call with preceeding colon" in {
-      val line = "f(); actor !  "
+    // simple scope completion: Seq(1, 2).foldLeft[Int]($)
+    // "detect scope in application parametrized method with type and normal parameters" in new detector {
+    //   val tree = compiler.Apply(mock[compiler.TypeApply], List())
+    //   compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
+    //   detector.detectAt(position) must_== Scope(Some(TypeNameContext))
+    // }
 
-    "detect scope completion after infix method call" in {
-      val line = "      matches flatMap  "
+    // Ident(TypeName) will work here
+    // "detect scope in application parametrized method with only type parameters" in new detector {
+    //   val tree = compiler.TypeApply(compiler.EmptyTree, List())
+    //   compilerApi.getTypeAt(position) returns tree
 
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "detect scope completion after infix unicode method call" in {
-      val line = "сосиска положитьВ  "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "detect type completion after unicode identifier" in {
-      val line = "сосиска "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
-    }
-
-    "detect scope completion iside of []" in {
-      val line = "type X[T] = Either[T,  ]"
-
-      detector.detect(line, line.indexOf(",") + 2) must_== CompletionType.Scope
-    }
-
-    "detect scope completion inside function arguments" in {
-      val line = "list.map( )"
-
-      detector.detect(line, line.indexOf(" ")) must_== CompletionType.Scope
-    }
-
-    "detect type completion in the middle of expression" in {
-       val line = "f().  match"
-
-       detector.detect(line, line.indexOf(".") + 1) must_== CompletionType.Type
-    }
-
-    "detect type completion in the middle of expression with infix operator" in {
-       val line = "val list = x   y :: z :: Nil"
-
-       detector.detect(line, line.indexOf("x") + 2) must_== CompletionType.Type
-    }
-
-    "detect scope completion in the middle of type expression" in {
-      val line = "type X[T] = ValidationNel[ , Option[T]]"
-
-      detector.detect(line, line.indexOf(",") - 1) must_== CompletionType.Scope
-    }
-
-    "detect scope in the middle of case expression" in {
-      val line = "  case Some(value) if value ==   => value"
-
-      detector.detect(line, line.indexOf("=>") - 2) must_== CompletionType.Scope
-    }
-
-    "detect scope in between  case statement" in {
-      val line = "  case   =>"
-
-      detector.detect(line, line.indexOf("=>") - 2) must_== CompletionType.Scope
-    }
-
-    "detect scope after new statement" in {
-      val line = "val x = new  "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "detect scope after extends statement" in {
-      val line = "class MyClass extends  "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "detect scope in between extends statement and other code" in {
-      val line = "class MyClass extends   with Log"
-
-      detector.detect(line, line.indexOf("extends") + 2) must_== CompletionType.Scope
-    }
-
-    "detect scope after with statement" in {
-      val line = "class MyClass extends Base with  "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "detect scope after yield statement" in {
-      val line = "for (x <- y) yield  "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "not detect completion after dot inside string" in {
-       val line = "val str = \"some. string\""
-
-       detector.detect(line, line.indexOf(".")) must_== CompletionType.NoCompletion
-    }
-
-    "detect scope completion in string concatenation" in {
-       val line = "val str = \"some string\" +   + \"another string\""
-
-       detector.detect(line, line.indexOf("+") + 2) must_== CompletionType.Scope
-    }
-
-    "detect scope completion after if in case statement" in {
-      val line = "  case Some(list) if  "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Scope
-    }
-
-    "detect scope completion in between if in case statement and =>" in {
-      val line = "  case Some(list) if   =>"
-
-      detector.detect(line, line.indexOf("if") + 2) must_== CompletionType.Scope
-
-    }
-
-    "detect type completion in import" in {
-      val line = "import scalaz. "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
-    }
-
-    "detect type completion in import with curly braces" in {
-      val line = "     import scalaz.{Monad, }"
-
-      detector.detect(line, line.length - 2) must_== CompletionType.Type
-    }
-
-    "detect scope completion after $ inside interpolated string" in {
-      val line = "s\"some text $ \""
-
-      detector.detect(line, line.indexOf("$") + 1) must_== CompletionType.Scope
-    }
-
-    "detect scope completion after ${ inside interpolated string" in {
-      val line = "s\"some text ${\""
-
-      detector.detect(line, line.indexOf("{") + 1) must_== CompletionType.Scope
-    }
-
-    "detect type completion in method call" in {
-      val line = "add(list.)"
-
-      detector.detect(line, line.indexOf('.') + 1) must_== CompletionType.Type
-    }
-
-    "detect type completion after parametrized method" in {
-      val line = "val future = (facade ? completeAt()).mapTo[CompletionResult[String]]. "
-
-      detector.detect(line, line.length - 1) must_== CompletionType.Type
-    }
-
-    "detect type completion with out of bound position" in {
-      val line = "    case FileSystemEvents."
-
-      detector.detect(line, line.length) must_== CompletionType.Type
-    }
+    //   detector.detectAt(position) must_== Scope(Some(TypeNameContext))
+    // }.pendingUntilFixed(". for some reason throws NPE at tree construction")
   }
 }
