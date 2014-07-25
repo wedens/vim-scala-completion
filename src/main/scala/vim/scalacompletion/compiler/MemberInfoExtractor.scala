@@ -1,12 +1,6 @@
-package vim.scalacompletion
+package vim.scalacompletion.compiler
 
 import scala.tools.nsc.interactive.Global
-import scala.tools.nsc.symtab.Flags
-
-case class MemberInfo(name: String, fullSignature: String,
-  isConstructor: Boolean = false, isLocal: Boolean = false,
-  isPublic: Boolean = false, isFromRootObjects: Boolean = true,
-  isInherited: Option[Boolean] = None)
 
 trait MemberInfoExtractorFactory[T] {
   def create(compiler: Global): MemberInfoExtractor[T]

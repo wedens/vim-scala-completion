@@ -2,14 +2,11 @@ package vim.scalacompletion.api
 
 import spray.routing.HttpService
 import akka.pattern.ask
-import akka.actor.{Actor, ActorRef, Props}
-import vim.scalacompletion.{FacadeFactoryImpl, FacadeFactory,
-                            MemberInfo, FacadeActor,
-                            SourcesWatchActor, WatchService,
-                            SourcesWatchActorFactory, ConfigLoader}
+import akka.actor.{Actor, ActorRef}
+import vim.scalacompletion.compiler.MemberInfo
+import vim.scalacompletion.filesystem.SourcesWatchActor
+import vim.scalacompletion.{FacadeFactory, FacadeActor}
 import FacadeActor._
-import SourcesWatchActor._
-import collection.JavaConversions._
 import akka.util.Timeout
 import scala.concurrent.duration._
 

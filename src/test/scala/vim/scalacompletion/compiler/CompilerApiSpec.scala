@@ -1,9 +1,8 @@
-package vim.scalacompletion
+package vim.scalacompletion.compiler
 
-import org.specs2.mutable._
 import java.io.{File => JFile}
+import org.specs2.mutable._
 import scala.reflect.internal.util.BatchSourceFile
-import scala.tools.nsc.interactive.Global
 
 class CompilerApiSpec extends Specification {
   val rtJarPath = "/rt.jar"
@@ -13,9 +12,9 @@ class CompilerApiSpec extends Specification {
   args(skipAll = true)
 
   def jars = Seq(
-    new JFile(getClass().getResource(rtJarPath).toURI),
-    new JFile(getClass().getResource(scalaLibJarPath).toURI),
-    new JFile(getClass().getResource(scalazJarPath).toURI)
+    new JFile(getClass.getResource(rtJarPath).toURI),
+    new JFile(getClass.getResource(scalaLibJarPath).toURI),
+    new JFile(getClass.getResource(scalazJarPath).toURI)
   )
 
   val compilerFactory = new CompilerFactoryImpl()

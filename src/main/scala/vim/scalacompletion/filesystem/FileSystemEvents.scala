@@ -1,4 +1,4 @@
-package vim.scalacompletion
+package vim.scalacompletion.filesystem
 
 import java.io.File
 

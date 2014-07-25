@@ -1,6 +1,7 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
 
 import org.specs2.mutable.Specification
+import vim.scalacompletion.compiler.MemberInfo
 
 class MemberRankCalculatorImplSpec extends Specification {
   val calculatorWithNonePrefix = (MemberRankCalculatorImpl.apply _).curried(None)

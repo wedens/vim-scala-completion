@@ -1,12 +1,11 @@
-package vim.scalacompletion
+package vim.scalacompletion.filesystem
 
-import akka.testkit._
 import akka.actor._
+import akka.testkit._
+import org.specs2.mock._
 import org.specs2.mutable._
 import org.specs2.specification.BeforeExample
-import org.specs2.mock._
-import java.nio.file.Paths
-import FacadeActor._
+import vim.scalacompletion.FacadeActor.{ReloadSources, RemoveSources}
 
 class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"))
                             with ImplicitSender

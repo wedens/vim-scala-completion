@@ -1,7 +1,7 @@
-package vim.scalacompletion
+package vim.scalacompletion.filesystem
 
-import akka.actor.{Actor, ActorRef, ActorContext, Props}
 import java.nio.file.Paths
+import akka.actor.{Actor, ActorContext, ActorRef, Props}
 
 class SourcesWatchActorFactory(context: ActorContext,
                                scalaSourcesFinder: ScalaSourcesFinder,
@@ -19,9 +19,9 @@ object SourcesWatchActor {
 class SourcesWatchActor(facadeActor: ActorRef,
                         watchService: WatchService,
                         scalaSourcesFinder: ScalaSourcesFinder) extends Actor {
-  import SourcesWatchActor._
-  import FileSystemEvents._
-  import FacadeActor._
+  import vim.scalacompletion.filesystem.FileSystemEvents._
+  import vim.scalacompletion.filesystem.SourcesWatchActor._
+  import vim.scalacompletion.FacadeActor._
 
   watchService.addObserver(self)
 

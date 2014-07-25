@@ -6,8 +6,9 @@ import akka.io.IO
 import spray.can.Http
 import vim.scalacompletion.WithLog
 import akka.util.Timeout
+import vim.scalacompletion.filesystem.WatchService
 import scala.concurrent.duration._
-import vim.scalacompletion.{FacadeFactoryImpl, WatchService}
+import vim.scalacompletion.FacadeFactoryImpl
 
 object Boot extends App with WithLog {
   logg.info("Starting application...")

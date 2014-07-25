@@ -1,4 +1,6 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
+
+import vim.scalacompletion.WithLog
 
 import scala.reflect.api.Position
 
@@ -70,6 +72,6 @@ class CompletionTypeDetector extends WithLog {
     } else false
   }
 
-  private def precedingKeyword(str: String) = scopeKeywords.exists(str.startsWith(_))
+  private def precedingKeyword(str: String) = scopeKeywords.exists(str.startsWith)
   private def importSelectors(str: String) = str.matches(".*\\{.* tropmi[\\s;]*")
 }

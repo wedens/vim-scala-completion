@@ -1,4 +1,6 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
+
+import vim.scalacompletion.compiler.MemberInfo
 
 object MemberInfoFilter extends MemberFilter[MemberInfo] {
   def apply(prefix: Option[String], member: MemberInfo): Boolean = {

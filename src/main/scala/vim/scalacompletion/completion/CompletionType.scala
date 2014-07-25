@@ -1,4 +1,4 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
 
 trait CompletionType
 object CompletionType {

@@ -1,4 +1,4 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
 
 import org.specs2.mutable._
 

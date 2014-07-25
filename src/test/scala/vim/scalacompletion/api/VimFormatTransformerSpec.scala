@@ -1,7 +1,7 @@
 package vim.scalacompletion.api
 
 import org.specs2.mutable.Specification
-import vim.scalacompletion.MemberInfo
+import vim.scalacompletion.compiler.MemberInfo
 
 class VimFormatTransformerSpec extends Specification {
   val transformer = new VimFormatTransformer

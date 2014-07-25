@@ -1,13 +1,14 @@
-package vim.scalacompletion
+package vim.scalacompletion.filesystem
 
 import java.nio.file.StandardWatchEventKinds._
 import java.nio.file.attribute.BasicFileAttributes
-import java.nio.file.{FileSystems, SimpleFileVisitor,
-                      FileVisitResult, Path, Files}
-import collection.JavaConversions._
-import java.nio.file.WatchEvent.Modifier
+import java.nio.file.{FileSystems, FileVisitResult, Files, Path, SimpleFileVisitor}
+
 import akka.actor.ActorRef
-import FileSystemEvents._
+import vim.scalacompletion.WithLog
+import vim.scalacompletion.filesystem.FileSystemEvents._
+
+import scala.collection.JavaConversions._
 
 
 class WatchService extends Runnable with WithLog {

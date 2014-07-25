@@ -1,4 +1,7 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
+
+import vim.scalacompletion._
+import vim.scalacompletion.compiler.{MemberInfoExtractorFactory, MemberInfoExtractor, MemberInfo, Compiler}
 
 import scala.reflect.internal.util.Position
 
@@ -42,6 +45,6 @@ class CompletionHandler[T](
     val rankCalculatorWithPrefix = (memberRankCalculator.apply _).curried(prefix)
     val sortedByRank = filteredMembers.sortBy(-rankCalculatorWithPrefix(_))
 
-    maxResults.map(sortedByRank.take(_)) getOrElse sortedByRank
+    maxResults.map(sortedByRank.take) getOrElse sortedByRank
   }
 }

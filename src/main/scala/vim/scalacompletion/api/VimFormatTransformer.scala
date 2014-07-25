@@ -1,6 +1,6 @@
 package vim.scalacompletion.api
 
-import vim.scalacompletion.MemberInfo
+import vim.scalacompletion.compiler.MemberInfo
 
 class VimFormatTransformer extends FormatTransformer[MemberInfo] {
   def transformCompletion(completions: Seq[MemberInfo]) = {

@@ -1,7 +1,6 @@
-package vim.scalacompletion
+package vim.scalacompletion.filesystem
 
 import java.io.{File => JFile}
-import collection.JavaConversions._
 
 class ScalaSourcesFinder {
 
@@ -15,6 +14,7 @@ class ScalaSourcesFinder {
     file.isFile && scalaSourceRegex.findFirstIn(file.getName).isDefined
   }
 
+  @scala.annotation.tailrec
   private def findSourcesRecursive(directories: List[JFile], sources: Seq[JFile] = Seq.empty): Seq[JFile] = {
     directories match {
       case dir :: tail =>

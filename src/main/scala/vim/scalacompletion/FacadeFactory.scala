@@ -1,7 +1,8 @@
 package vim.scalacompletion
 
-import java.io.{File => JFile}
 import akka.actor.{ActorRefFactory, Props, ActorRef}
+import vim.scalacompletion.compiler.MemberInfo
+import vim.scalacompletion.filesystem.WatchService
 
 trait FacadeFactory[T] {
   def createFacade(actorRefFactory: ActorRefFactory): ActorRef

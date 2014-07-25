@@ -1,6 +1,7 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
 
 import org.specs2.mutable._
+import vim.scalacompletion.compiler.MemberInfo
 
 
 class MemberInfoFilterSpec extends Specification {

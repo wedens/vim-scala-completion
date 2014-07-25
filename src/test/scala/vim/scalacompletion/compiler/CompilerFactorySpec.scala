@@ -1,7 +1,9 @@
-package vim.scalacompletion
+package vim.scalacompletion.compiler
+
+import java.io.{File => JFile}
 
 import org.specs2.mutable._
-import java.io.{File => JFile}
+
 import scala.tools.nsc.reporters.StoreReporter
 
 class CompilerFactorySpec extends Specification {

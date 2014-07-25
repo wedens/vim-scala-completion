@@ -4,6 +4,9 @@ import java.io.{File => JFile}
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.ask
 import akka.util.Timeout
+import vim.scalacompletion.compiler._
+import vim.scalacompletion.completion._
+import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService, SourcesWatchActor, SourcesWatchActorFactory}
 import scala.concurrent.duration._
 import collection.JavaConversions._
 

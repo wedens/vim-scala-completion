@@ -1,12 +1,14 @@
-package vim.scalacompletion
+package vim.scalacompletion.completion
 
-import org.specs2.mutable._
-import org.specs2.mock._
-import org.specs2.specification.Scope
-import org.specs2.matcher.ThrownExpectations
-import scala.reflect.internal.util.Position
 import org.mockito.Matchers.{eq => meq}
-import scala.reflect.internal.util.SourceFile
+import org.specs2.matcher.ThrownExpectations
+import org.specs2.mock._
+import org.specs2.mutable._
+import org.specs2.specification.Scope
+import vim.scalacompletion.PositionFactory
+import vim.scalacompletion.compiler.{MemberInfoExtractor, Compiler}
+
+import scala.reflect.internal.util.{Position, SourceFile}
 
 trait completion extends Scope with Mockito with ThrownExpectations {
   val completionTypeDetector = mock[CompletionTypeDetector]
@@ -100,7 +102,7 @@ class CompletionHandlerSpec extends Specification with Mockito {
     }
 
     "limit result by 1" in new typeCompletion {
-      handler.complete(position, maxResults = Some(1)) must have size(1)
+      handler.complete(position, maxResults = Some(1)) must have size 1
     }
 
     "decrease position by 1 for type completion" in new typeCompletion {

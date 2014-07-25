@@ -5,6 +5,9 @@ import org.specs2.mock._
 import org.specs2.time.NoTimeConversions
 import org.specs2.specification.Scope
 import org.specs2.matcher.ThrownExpectations
+import vim.scalacompletion.compiler.{Compiler, CompilerFactory}
+import vim.scalacompletion.completion.{CompletionHandlerFactory, CompletionHandler}
+import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService, SourcesWatchActor, SourcesWatchActorFactory}
 import scala.concurrent.duration._
 import scala.reflect.internal.util.Position
 import scala.tools.nsc.interactive.Global

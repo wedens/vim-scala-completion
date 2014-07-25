@@ -1,9 +1,9 @@
-package vim.scalacompletion
+package vim.scalacompletion.compiler
 
 import java.io.{File => JFile}
-import scala.tools.nsc.reporters.{StoreReporter, ConsoleReporter}
+import vim.scalacompletion.WithLog
 import scala.tools.nsc.Settings
-import scala.tools.nsc.interactive.Global
+import scala.tools.nsc.reporters.StoreReporter
 
 trait CompilerFactory {
   def create(jars: Seq[JFile]): Compiler
