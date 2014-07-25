@@ -193,6 +193,12 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.indexOf("$") + 1) must_== CompletionType.Scope
     }
 
+    "detect scope completion after ${ inside interpolated string" in {
+      val line = "s\"some text ${\""
+
+      detector.detect(line, line.indexOf("{") + 1) must_== CompletionType.Scope
+    }
+
     "detect type completion in method call" in {
       val line = "add(list.)"
 

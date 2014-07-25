@@ -33,6 +33,7 @@ class CompletionTypeDetector extends WithLog {
       if (insideOfString) {
         lineBeforePosReversed.headOption match {
           case Some('$') => CompletionType.Scope
+          case Some('{') if lineBeforePosReversed.charAt(1) == '$' => CompletionType.Scope
           case _ => CompletionType.NoCompletion
         }
       } else {
