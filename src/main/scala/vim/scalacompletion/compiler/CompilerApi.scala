@@ -53,6 +53,27 @@ trait CompilerApi extends WithLog { self: Global =>
     }
   }
 
+  def askType(position: Position): String = {
+    withResponse[Tree](r => askTypeAt(position, r)).get match {
+      case Left(tree) =>
+        ask { () =>
+          tree match {
+            case Apply(Select(_: New, _), _) => "apply new" // scope
+            case Apply(Select(qualifier, _), _) if qualifier.pos.isDefined && qualifier.pos.isRange => "function application params " + showRaw(qualifier) // type
+            case Ident(_: TypeName) => "type name" // scope
+            case _: New => "new" // scope
+            case Import(_: Select, _) => "import" //type
+            case _: Import => "import empty" // scope
+            case _: Select => "member selection" // type
+            // extends, with
+            case _: Template => "template" // scope
+
+            case x => "unknown: " + showRaw(x) // scope
+          }
+        }
+    }
+  }
+
   private def withResponse[A](op: Response[A] => Any): Response[A] = {
     val response = new Response[A]
     op(response)
