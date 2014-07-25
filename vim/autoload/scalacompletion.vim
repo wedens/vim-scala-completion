@@ -3,6 +3,8 @@ if exists('g:loaded_scalacompletion')
 endif
 
 let g:loaded_scalacompletion = 1
+let g:started_scalacompletion = 0
+let g:scalacompletion_error = 0
 
 fu! scalacompletion#Complete(findstart, base)
   if a:findstart == 1
@@ -15,8 +17,9 @@ endf
 fu! scalacompletion#Start()
   let config_file_name = 'vim_scala_completion.conf'
   let project_root = scalacompletion#FindProjectRoot(config_file_name)
-  echom project_root
+  echom "Starting scala completion server for project: ".project_root
   if project_root == '0'
+    let g:scalacompletion_error = 1
     echoerr "Can't find project configured for vim-scala-completion! ".config_file_name. " file required in project root."
     return
   endif
@@ -28,15 +31,16 @@ fu! scalacompletion#Start()
   let response_str = eval('"'.response.'"')
 
   if response_str != config_path
+    let g:scalacompletion_error = 1
     echoerr "Unexpected response from server: ".response_str
     return
   endif
 
-  autocmd FileType scala setlocal omnifunc=scalacompletion#Complete
   if &ft == 'scala'
     setlocal omnifunc=scalacompletion#Complete
   endif
 
+  let g:started_scalacompletion = 1
   echom "Project started successfuly"
 endfu
 
@@ -50,6 +54,10 @@ fu! s:startOfWord()
 endfu
 
 fu! s:doCompletion(prefix)
+  if !g:started_scalacompletion && !g:scalacompletion_error
+    call scalacompletion#Start()
+  endif
+
   let offset = s:cursorOffset()
   let name = s:absolutePath()
   let tmpFilePath = s:saveCurrentBufferToTempFile()
@@ -69,6 +77,7 @@ fu! s:doCompletion(prefix)
     let completions = eval(result)
     return completions
   catch
+    let g:scalacompletion_error = 1
     echom 'Completion failed. Response from server: '.result
     return []
   endtry
