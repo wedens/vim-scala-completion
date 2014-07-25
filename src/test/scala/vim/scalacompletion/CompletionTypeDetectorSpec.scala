@@ -30,14 +30,26 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.length - 1) must_== CompletionType.Type
     }
 
+    "detect type completion after" in {
+      val line = "str "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Type
+    }
+
     "detect type completion after word with preceeding spaces" in {
       val line = "   str  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Type
     }
 
-    "detect scope completion after symbolic infix method call" in {
+    "detect scope completion after infix method call" in {
       val line = "someVar |@|  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope completion after math symbol infix method call" in {
+      val line = "someVar ∘∘  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
@@ -52,6 +64,18 @@ class CompletionTypeDetectorSpec extends Specification {
       val line = "      matches flatMap  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope completion after infix unicode method call" in {
+      val line = "сосиска положитьВ  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect type completion after unicode identifier" in {
+      val line = "сосиска "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Type
     }
 
     "detect scope completion iside of []" in {
@@ -158,7 +182,7 @@ class CompletionTypeDetectorSpec extends Specification {
     }
 
     "detect type completion in import with curly braces" in {
-      val line = "import scalaz.{Monad, }"
+      val line = "     import scalaz.{Monad, }"
 
       detector.detect(line, line.length - 2) must_== CompletionType.Type
     }
