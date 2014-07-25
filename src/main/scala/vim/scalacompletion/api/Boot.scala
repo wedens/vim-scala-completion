@@ -16,6 +16,7 @@ object Boot extends App with WithLog {
   val watchService: WatchService = new WatchService()
   val watchServiceThread = new Thread(watchService, "WatchService")
   watchServiceThread.setDaemon(true)
+  //TODO: start after successful initialization
   watchServiceThread.start() //stopped in api actor
 
   val facadeFactory = new FacadeFactoryImpl(watchService)
@@ -26,6 +27,12 @@ object Boot extends App with WithLog {
 
   implicit val bindingTimeout = Timeout(1.second)
   import system.dispatcher
-  val boundFuture = IO(Http) ? Http.Bind(api, "localhost", port = 8085)
-  boundFuture.foreach { _ => logg.info("Application started") }
+  val port = 8085
+  val boundFuture = IO(Http) ? Http.Bind(api, "localhost", port = port)
+  boundFuture onSuccess {
+    case _: Http.Bound => logg.info("Scala completion server started.")
+    case Http.CommandFailed(_: Http.Bind) =>
+      logg.error(s"Unable to start scala completion server. Port $port is occupied by some other process.")
+      system.shutdown()
+  }
 }
