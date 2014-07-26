@@ -8,8 +8,8 @@ import scala.reflect.api.Position
 import scala.tools.nsc.interactive.Global
 import vim.scalacompletion.compiler.Compiler
 import vim.scalacompletion.compiler.CompilerApi
-import CompletionType._
-import CompletionContext._
+import CompletionTypes._
+import CompletionContexts._
 
 trait detector extends Scope with ThrownExpectations with Mockito {
   val compiler: Global = mock[Compiler]
@@ -76,6 +76,13 @@ class CompletionTypeDetectorSpec extends Specification {
       compilerApi.getTypeAt(position) returns tree
 
       detector.detectAt(position) must_== Scope(Some(NewContext))
+    }
+
+    "not detect any completion inside string" in new detector {
+      val tree = compiler.Literal(mock[compiler.Constant])
+      compilerApi.getTypeAt(position) returns tree
+
+      detector.detectAt(position) must_== NoCompletion
     }
 
     // simple scope completion: Seq(1, 2).foldLeft[Int]($)

@@ -27,14 +27,48 @@ class CompletionHandler[T](
                 memberRankCalculator: MemberRankCalculator[T],
                 positionFactory: PositionFactory) extends WithLog {
 
+  import scala.reflect.internal.util.BatchSourceFile
+  import scala.reflect.internal.util.SourceFile
+
+  private def editSource(positionAfter: Position): Option[Position] = {
+    val source = positionAfter.source
+    val content = source.content
+    val pointAtCompletion = positionAfter.point - 1
+    val pointAfterCompletion = positionAfter.point
+    val charAtCompletionPosition = content(pointAtCompletion)
+    if (charAtCompletionPosition == ' ') { // TODO: better detection
+      logg.info(s"Infix member selection. Replacing space with dot")
+      content(pointAtCompletion) = '.'
+    }
+
+    val isMemberSelection = charAtCompletionPosition == '.' || charAtCompletionPosition == ' '
+    if (isMemberSelection) {
+      logg.info(s"Replacing member selection with ().")
+      val (l, r) = content.splitAt(pointAfterCompletion)
+      val updatedContent = l ++ Array('(', ')') ++ r
+      val updatedSource = new BatchSourceFile(source.file, updatedContent)
+      val updatedPositionAfter = positionAfter.withSource(updatedSource)
+      Some(updatedPositionAfter)
+    } else None
+  }
+
   def complete(position: Position, prefix: Option[String] = None,
                                    maxResults: Option[Int] = None): Seq[T] = {
-    val completionType = completionTypeDetector.detectAt(position)
+
+    val edited = editSource(position)
+    edited.foreach { editedPos =>
+      compiler.reloadSources(List(editedPos.source))
+    }
+
+    val typeDetectionPos = edited getOrElse position
+    val completionPos  = typeDetectionPos.withPoint(typeDetectionPos.point - 1)
+
+    logg.info(s"Detecting completion type at column: ${typeDetectionPos.column} (${typeDetectionPos.lineContent.charAt(typeDetectionPos.column - 1)})")
+    val completionType = completionTypeDetector.detectAt(typeDetectionPos)
+    logg.info(s"Completion $completionType at column: ${completionPos.column} (${completionPos.lineContent.charAt(completionPos.column - 1)}). Line: ${completionPos.lineContent}")
     val members = completionType match {
-      case CompletionType.Type(_) =>
-        val positionOnWord = positionFactory.create(position.source, position.point - 1)
-        compiler.typeCompletion(positionOnWord, extractor)
-      case CompletionType.Scope(_) => compiler.scopeCompletion(position, extractor)
+      case CompletionTypes.Type(_)  => compiler.typeCompletion(completionPos, extractor)
+      case CompletionTypes.Scope(_) => compiler.scopeCompletion(completionPos, extractor)
       case _ => Seq.empty
     }
 

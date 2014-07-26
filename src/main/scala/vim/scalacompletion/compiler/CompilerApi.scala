@@ -6,7 +6,7 @@ import scala.tools.nsc.interactive.Global
 
 trait CompilerApi extends WithLog { self: Global =>
 
-  def reloadSources(sources: List[SourceFile]) = {
+  def reloadSources(sources: List[SourceFile]): Unit = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
     try {
       withResponse[Unit](r => askReload(sources, r)).get
@@ -16,30 +16,42 @@ trait CompilerApi extends WithLog { self: Global =>
   }
 
   def typeCompletion[T](position: Position, extractor: Member => T): Seq[T] = {
-    withResponse[List[Member]](r => askTypeCompletion(position, r)).get match {
-      case Left(matches) =>
-        ask { () =>
-          matches map extractor
-        }
-      case Right(ex) =>
-        logg.debug("Exception during type completion", ex)
+    try {
+      withResponse[List[Member]](r => askTypeCompletion(position, r)).get match {
+        case Left(matches) =>
+          ask { () =>
+            matches map extractor
+          }
+        case Right(ex) =>
+          logg.debug("Exception during type completion", ex)
+          Seq.empty
+      }
+    } catch {
+      case ex: Throwable =>
+        logg.debug("Exception while type completion", ex)
         Seq.empty
     }
   }
 
   def scopeCompletion[T](position: Position, extractor: Member => T): Seq[T] = {
-    withResponse[List[Member]](r => askScopeCompletion(position, r)).get match {
-      case Left(matches) =>
-        ask { () =>
-          matches map extractor
-        }
-      case Right(ex) =>
-        logg.debug("Exception during scope completion", ex)
+    try {
+      withResponse[List[Member]](r => askScopeCompletion(position, r)).get match {
+        case Left(matches) =>
+          ask { () =>
+            matches map extractor
+          }
+        case Right(ex) =>
+          logg.debug("Exception during scope completion", ex)
+          Seq.empty
+      }
+    } catch {
+      case ex: Throwable =>
+        logg.debug("Exception while scope completion", ex)
         Seq.empty
     }
   }
 
-  def removeSources(sources: List[SourceFile]) = {
+  def removeSources(sources: List[SourceFile]): Unit = {
     logg.debug(s"Removing sources: ${sources.mkString(",")}")
     try {
       withResponse[Unit](r => askFilesDeleted(sources, r)).get
@@ -49,7 +61,13 @@ trait CompilerApi extends WithLog { self: Global =>
   }
 
   def getTypeAt(position: Global#Position): Global#Tree = {
-    withResponse[Tree](r => askTypeAt(position, r)).get.left.get
+    try {
+      withResponse[Tree](r => askTypeAt(position, r)).get.left.get
+    } catch {
+      case ex: Throwable =>
+        logg.debug("Exception while retrieving type", ex)
+        throw ex
+    }
   }
 
   private def withResponse[A](op: Response[A] => Any): Response[A] = {

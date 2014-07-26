@@ -2,13 +2,14 @@ package vim.scalacompletion.completion
 
 import scala.tools.nsc.interactive.Global
 import vim.scalacompletion.compiler.CompilerApi
-import CompletionType._
-import CompletionContext._
+import CompletionTypes._
+import CompletionContexts._
 
 class CompletionTypeDetector(compiler: Global, compilerApi: CompilerApi) {
   def detectAt(position: Global#Position): CompletionType  = {
     val tree = compilerApi.getTypeAt(position)
 
+    // println("TREE:" + compiler.showRaw(tree))
     tree match {
       case compiler.Import(_: compiler.Select, _) => Type(Some(ImportContext))
       case _: compiler.Import => Scope(Some(ImportContext))
@@ -21,6 +22,7 @@ class CompletionTypeDetector(compiler: Global, compilerApi: CompilerApi) {
       // see test for comments on this comments
       // case compiler.Apply(_: compiler.TypeApply, _) => Scope(Some(TypeNameContext))
       // case _: compiler.TypeApply => Scope(Some(TypeNameContext))
+      case _: compiler.Literal => NoCompletion
       case _ => Scope()
     }
   }
