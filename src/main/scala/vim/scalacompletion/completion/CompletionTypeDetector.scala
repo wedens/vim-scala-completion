@@ -49,6 +49,8 @@ class CompletionTypeDetector extends WithLog {
           case Some(';') => CompletionType.Scope
           // after: 'if', 'with' etc
           case Some(_) if precedingKeyword(trimmed) => CompletionType.Scope
+          // import without any selector: import
+          case Some(_) if emptyImport(lineBeforePosReversed) => CompletionType.Scope
           // inside '{}' in import: import pkg.nest.{}
           case Some(_) if importSelectors(trimmed) => CompletionType.Type
           // complete infix method parameter
@@ -74,4 +76,5 @@ class CompletionTypeDetector extends WithLog {
 
   private def precedingKeyword(str: String) = scopeKeywords.exists(str.startsWith)
   private def importSelectors(str: String) = str.matches(".*\\{.* tropmi[\\s;]*")
+  private def emptyImport(str: String) = str.matches("\\s+tropmi[\\s;]*")
 }
