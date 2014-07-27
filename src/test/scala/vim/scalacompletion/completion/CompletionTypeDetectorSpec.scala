@@ -186,6 +186,12 @@ class CompletionTypeDetectorSpec extends Specification {
        detector.detect(line, line.indexOf(".")) must_== CompletionType.NoCompletion
     }
 
+    "not detect completion inside string with escaped quotes" in {
+      val line = "val str = \"some text \\\" . \""
+
+      detector.detect(line, line.indexOf(".")) must_== CompletionType.NoCompletion
+    }
+
     "detect scope completion in string concatenation" in {
        val line = "val str = \"some string\" +   + \"another string\""
 
@@ -251,6 +257,18 @@ class CompletionTypeDetectorSpec extends Specification {
       val line = "    case FileSystemEvents."
 
       detector.detect(line, line.length) must_== CompletionType.Type
+    }
+
+    "detect scope completion inside string interpolation expression" in {
+      val line = "s\"some text ${x +  }\""
+
+      detector.detect(line, line.indexOf("+") + 2) must_== CompletionType.Scope
+    }
+
+    "detect type completion inside string interpolation expression" in {
+      val line = "s\"some text ${x. }\""
+
+      detector.detect(line, line.indexOf(".") + 1) must_== CompletionType.Type
     }
   }
 }
