@@ -46,7 +46,7 @@ class WatchService extends Runnable with WithLog {
             case ENTRY_CREATE if pathAsFile.isDirectory => watchRecursively(path)
             case ENTRY_CREATE => notify(Created(pathAsFile))
             case ENTRY_DELETE => notify(Deleted(pathAsFile))
-            case ENTRY_MODIFY => notify(Modifyed(pathAsFile))
+            case ENTRY_MODIFY => notify(Modified(pathAsFile))
             case x => logg.warn(s"Unknown event kind: $x at path $path")
           }
         }

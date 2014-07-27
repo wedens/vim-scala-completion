@@ -34,7 +34,7 @@ class SourcesWatchActor(facadeActor: ActorRef,
       sender ! Watching(dirs)
     case Created(file) if scalaSourcesFinder.isScalaSource(file) =>
       facadeActor ! ReloadSources(Seq(file))
-    case Modifyed(file) if scalaSourcesFinder.isScalaSource(file) =>
+    case Modified(file) if scalaSourcesFinder.isScalaSource(file) =>
       facadeActor ! ReloadSources(Seq(file))
     case Deleted(file) if scalaSourcesFinder.isScalaSource(file) =>
       facadeActor ! RemoveSources(Seq(file))

@@ -11,7 +11,7 @@ class Compiler(settings: Settings, _reporter: Reporter, projectName: String = ""
 
 trait CompilerApi extends WithLog { self: Global =>
 
-  def reloadSources(sources: List[SourceFile]) = {
+  def reloadSources(sources: List[SourceFile]): Unit = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
     withResponse[Unit](r => askReload(sources, r)).get
   }
@@ -40,7 +40,7 @@ trait CompilerApi extends WithLog { self: Global =>
     }
   }
 
-  def removeSources(sources: List[SourceFile]) = {
+  def removeSources(sources: List[SourceFile]): Unit = {
     logg.debug(s"Removing sources: ${sources.mkString(",")}")
     withResponse[Unit](r => askFilesDeleted(sources, r)).get
   }

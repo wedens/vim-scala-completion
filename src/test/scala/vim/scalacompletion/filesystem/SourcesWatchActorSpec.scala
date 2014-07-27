@@ -66,15 +66,15 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
        ok
     }
 
-    "reload source when Modifyed message received if file is scala source" in {
-      watchActor ! FileSystemEvents.Modifyed(sourceFile)
+    "reload source when Modified message received if file is scala source" in {
+      watchActor ! FileSystemEvents.Modified(sourceFile)
 
       facadeProbe.expectMsgType[ReloadSources] must_== ReloadSources(Seq(sourceFile))
       ok
     }
 
-    "not reload file when Modifyed message received and file is not scala source" in {
-       watchActor ! FileSystemEvents.Modifyed(otherFile)
+    "not reload file when Modified message received and file is not scala source" in {
+       watchActor ! FileSystemEvents.Modified(otherFile)
 
        facadeProbe.expectNoMsg()
        ok
