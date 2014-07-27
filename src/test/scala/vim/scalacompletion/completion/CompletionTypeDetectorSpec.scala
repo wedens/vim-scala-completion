@@ -114,20 +114,50 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.indexOf("=>") - 2) must_== CompletionType.Scope
     }
 
-    "detect scope in between  case statement" in {
+    "detect scope in between 'case' and '=>'" in {
       val line = "  case   =>"
 
       detector.detect(line, line.indexOf("=>") - 2) must_== CompletionType.Scope
     }
 
-    "detect scope after new statement" in {
+    "detect scope after 'new' keyword" in {
       val line = "val x = new  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
-    "detect scope after extends statement" in {
+    "detect scope after 'extends' keyword" in {
       val line = "class MyClass extends  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after 'class' keyword" in {
+      val line = "class  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after 'trait' keyword" in {
+      val line = "trait  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after 'val' keyword" in {
+      val line = "val  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after 'var' keyword" in {
+      val line = "var  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
+    "detect scope after 'def' keyword" in {
+      val line = "def  "
 
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }

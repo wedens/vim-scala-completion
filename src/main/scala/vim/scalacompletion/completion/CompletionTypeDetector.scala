@@ -5,7 +5,8 @@ import vim.scalacompletion.WithLog
 import scala.reflect.api.Position
 
 class CompletionTypeDetector extends WithLog {
-  val scopeKeywords = Seq("if", "case", "new", "yield", "extends", "with").map(_.reverse)
+  val scopeKeywords = Seq("if", "case", "new", "yield", "extends",
+                          "with", "class", "trait", "val", "var", "def").map(_.reverse)
 
   def isIdentifierChar(ch: String) = {
     val positive = "[\\p{L}0-9\\p{Punct}\\p{Sm}]".r
