@@ -17,7 +17,7 @@ libraryDependencies ++= {
   val sprayV = "1.3.1"
   Seq(
     "org.scala-lang"      %   "scala-compiler"  % scalaVersion.value,
-    "org.scalaz"          %%  "scalaz-core"     % "7.0.6",
+    // "org.scalaz"          %%  "scalaz-core"     % "7.0.6",
     "ch.qos.logback"      %   "logback-classic" % "1.1.1",
     "io.spray"            %%  "spray-can"       % sprayV,
     "io.spray"            %%  "spray-routing"   % sprayV,
