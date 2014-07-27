@@ -174,6 +174,12 @@ class CompletionTypeDetectorSpec extends Specification {
       detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
+    "detect scope after else statement" in {
+      val line = "if (x) a else  "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
+    }
+
     "detect scope after yield statement" in {
       val line = "for (x <- y) yield  "
 
@@ -257,6 +263,18 @@ class CompletionTypeDetectorSpec extends Specification {
       val line = "    case FileSystemEvents."
 
       detector.detect(line, line.length) must_== CompletionType.Type
+    }
+
+    "detect scope completion after ':' in parameters" in {
+      val line = "def someFunction(arg: )"
+
+      detector.detect(line, line.indexOf(":") + 1) must_== CompletionType.Scope
+    }
+
+    "detect scope completion after ':' in return type" in {
+      val line = "def someFunction(arg: Int): "
+
+      detector.detect(line, line.length - 1) must_== CompletionType.Scope
     }
 
     "detect scope completion inside string interpolation expression" in {

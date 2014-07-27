@@ -5,7 +5,7 @@ import vim.scalacompletion.WithLog
 import scala.reflect.api.Position
 
 class CompletionTypeDetector extends WithLog {
-  val scopeKeywords = Seq("if", "case", "new", "yield", "extends",
+  val scopeKeywords = Seq("if", "else", "case", "new", "yield", "extends",
                           "with", "class", "trait", "val", "var", "def").map(_.reverse)
 
 
