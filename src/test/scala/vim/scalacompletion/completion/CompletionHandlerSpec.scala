@@ -5,7 +5,6 @@ import org.specs2.matcher.ThrownExpectations
 import org.specs2.mock._
 import org.specs2.mutable._
 import org.specs2.specification.Scope
-import vim.scalacompletion.PositionFactory
 import vim.scalacompletion.compiler.{MemberInfoExtractor, Compiler}
 
 import scala.reflect.internal.util.{Position, SourceFile}
@@ -16,12 +15,9 @@ trait completion extends Scope with Mockito with ThrownExpectations {
   val extractor = mock[MemberInfoExtractor[String]]
   val filter = mock[MemberFilter[String]]
   val memberRankCalculator = mock[MemberRankCalculator[String]]
-  val positionFactory = mock[PositionFactory]
   val handler = new CompletionHandler(completionTypeDetector,
                                       compiler, extractor, filter,
-                                      memberRankCalculator,
-                                      positionFactory)
-
+                                      memberRankCalculator)
   val position = mock[Position]
   filter.apply(any, any) returns true
 }
@@ -39,8 +35,8 @@ trait typeCompletion extends completion {
   val typeCompletionPosition = mock[Position]
   position.source returns source
   position.point returns offset
+  position.withPoint(offset - 1) returns typeCompletionPosition
   completionTypeDetector.detect(position) returns CompletionType.Type
-  positionFactory.create(source, offset - 1) returns typeCompletionPosition
   compiler.typeCompletion[String](typeCompletionPosition, extractor) returns typeCompletionResult
 }
 
@@ -103,12 +99,6 @@ class CompletionHandlerSpec extends Specification with Mockito {
 
     "limit result by 1" in new typeCompletion {
       handler.complete(position, maxResults = Some(1)) must have size 1
-    }
-
-    "decrease position by 1 for type completion" in new typeCompletion {
-      handler.complete(position)
-
-      there was one(positionFactory).create(source, offset - 1)
     }
   }
 }

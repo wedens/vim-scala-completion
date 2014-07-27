@@ -2,7 +2,7 @@ package vim.scalacompletion.compiler
 
 import vim.scalacompletion.WithLog
 
-import scala.reflect.internal.util.SourceFile
+import scala.reflect.internal.util.{SourceFile, BatchSourceFile}
 import scala.tools.nsc.Settings
 import scala.tools.nsc.interactive.Global
 import scala.tools.nsc.reporters.Reporter
@@ -13,11 +13,7 @@ trait CompilerApi extends WithLog { self: Global =>
 
   def reloadSources(sources: List[SourceFile]) = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
-    try {
-      withResponse[Unit](r => askReload(sources, r)).get
-    } catch {
-      case ex: Throwable => logg.debug("Exception while removing sources", ex)
-    }
+    withResponse[Unit](r => askReload(sources, r)).get
   }
 
   def typeCompletion[T](position: Position, extractor: Member => T): Seq[T] = {
@@ -46,11 +42,7 @@ trait CompilerApi extends WithLog { self: Global =>
 
   def removeSources(sources: List[SourceFile]) = {
     logg.debug(s"Removing sources: ${sources.mkString(",")}")
-    try {
-      withResponse[Unit](r => askFilesDeleted(sources, r)).get
-    } catch {
-      case ex: Throwable => logg.debug("Exception while removing sources", ex)
-    }
+    withResponse[Unit](r => askFilesDeleted(sources, r)).get
   }
 
   private def withResponse[A](op: Response[A] => Any): Response[A] = {

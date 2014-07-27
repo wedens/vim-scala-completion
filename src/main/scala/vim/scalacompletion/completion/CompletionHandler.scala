@@ -16,7 +16,7 @@ class CompletionHandlerFactoryForMemberInfo(
   def create(compiler: Compiler): CompletionHandler[MemberInfo] =
     new CompletionHandler(new CompletionTypeDetector, compiler,
       memberInfoExtractorFactory.create(compiler), MemberInfoFilter,
-      MemberRankCalculatorImpl, new PositionFactory)
+      MemberRankCalculatorImpl)
 }
 
 class CompletionHandler[T](
@@ -24,17 +24,17 @@ class CompletionHandler[T](
                 compiler: Compiler,
                 extractor: MemberInfoExtractor[T],
                 membersFilter: MemberFilter[T],
-                memberRankCalculator: MemberRankCalculator[T],
-                positionFactory: PositionFactory) extends WithLog {
+                memberRankCalculator: MemberRankCalculator[T]) extends WithLog {
 
-  def complete(position: Position, prefix: Option[String] = None,
+  def complete(positionAfter: Position, prefix: Option[String] = None,
                                    maxResults: Option[Int] = None): Seq[T] = {
-    val completionType = completionTypeDetector.detect(position)
+    val completionType = completionTypeDetector.detect(positionAfter)
     val members = completionType match {
       case CompletionType.Type =>
-        val positionOnWord = positionFactory.create(position.source, position.point - 1)
-        compiler.typeCompletion(positionOnWord, extractor)
-      case CompletionType.Scope => compiler.scopeCompletion(position, extractor)
+        val pointAtCompletionPos = positionAfter.point - 1
+        val completionPos = positionAfter.withPoint(pointAtCompletionPos)
+        compiler.typeCompletion(completionPos, extractor)
+      case CompletionType.Scope => compiler.scopeCompletion(positionAfter, extractor)
       case _ => Seq.empty
     }
 
