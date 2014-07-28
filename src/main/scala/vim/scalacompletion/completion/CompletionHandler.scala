@@ -30,11 +30,11 @@ class CompletionHandler[T](
                                    maxResults: Option[Int] = None): Seq[T] = {
     val completionType = completionTypeDetector.detect(positionAfter)
     val members = completionType match {
-      case CompletionType.Type =>
+      case CompletionTypes.Type =>
         val pointAtCompletionPos = positionAfter.point - 1
         val completionPos = positionAfter.withPoint(pointAtCompletionPos)
         compiler.typeCompletion(completionPos, extractor)
-      case CompletionType.Scope => compiler.scopeCompletion(positionAfter, extractor)
+      case CompletionTypes.Scope => compiler.scopeCompletion(positionAfter, extractor)
       case _ => Seq.empty
     }
 

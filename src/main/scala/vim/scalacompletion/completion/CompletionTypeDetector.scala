@@ -22,7 +22,7 @@ class CompletionTypeDetector extends WithLog {
     val (beforePosAndPos, afterPos) = line.splitAt(pos + 1)
     val atPos = if (beforePosAndPos.nonEmpty) beforePosAndPos.last else ""
     if (pos >= line.length && atPos == '.') { // TODO: this is a dirty hack
-      CompletionType.Type
+      CompletionTypes.Type
     } else {
       val beforePos = if (beforePosAndPos.nonEmpty) beforePosAndPos.init else ""
       val lineBeforePosReversed = beforePos.reverse
@@ -33,12 +33,12 @@ class CompletionTypeDetector extends WithLog {
       val insideOfString = !balanced
       if (insideOfString) {
         if (lineBeforePosReversed.startsWith("$")) {
-          CompletionType.Scope
+          CompletionTypes.Scope
         } else {
           val openingQuotePosition = matches.last.start
           val interpolatedExprIdx = beforePos.indexOfSlice("${", openingQuotePosition)
           if (interpolatedExprIdx == -1) {
-            CompletionType.NoCompletion
+            CompletionTypes.NoCompletion
           } else {
             val exprStart = interpolatedExprIdx + 2
             val expr = beforePos.drop(exprStart)
@@ -57,22 +57,22 @@ class CompletionTypeDetector extends WithLog {
     val trimmed = line.trim
     trimmed.headOption match {
       // type completion after identifier with following dot
-      case Some('.') => CompletionType.Type
+      case Some('.') => CompletionTypes.Type
       // empty line before completion position
-      case None => CompletionType.Scope
+      case None => CompletionTypes.Scope
       // scope completion after ';' separator
-      case Some(';') => CompletionType.Scope
+      case Some(';') => CompletionTypes.Scope
       // after: 'if', 'with' etc
-      case Some(_) if precedingKeyword(trimmed) => CompletionType.Scope
+      case Some(_) if precedingKeyword(trimmed) => CompletionTypes.Scope
       // import without any selector: import
-      case Some(_) if emptyImport(line) => CompletionType.Scope
+      case Some(_) if emptyImport(line) => CompletionTypes.Scope
       // inside '{}' in import: import pkg.nest.{}
-      case Some(_) if importSelectors(trimmed) => CompletionType.Type
+      case Some(_) if importSelectors(trimmed) => CompletionTypes.Type
       // complete infix method parameter
-      case Some(_) if infixParameter(trimmed) => CompletionType.Scope
+      case Some(_) if infixParameter(trimmed) => CompletionTypes.Scope
       // complete infix members
-      case Some(ch) if ch.isLetterOrDigit => CompletionType.Type
-      case _ => CompletionType.Scope
+      case Some(ch) if ch.isLetterOrDigit => CompletionTypes.Type
+      case _ => CompletionTypes.Scope
     }
   }
 

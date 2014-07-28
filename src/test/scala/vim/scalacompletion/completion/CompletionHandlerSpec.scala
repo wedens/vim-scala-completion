@@ -24,7 +24,7 @@ trait completion extends Scope with Mockito with ThrownExpectations {
 
 trait scopeCompletion extends completion {
   val scopeCompletionResult = Seq("String", "Option", "Seq")
-  completionTypeDetector.detect(position) returns CompletionType.Scope
+  completionTypeDetector.detect(position) returns CompletionTypes.Scope
   compiler.scopeCompletion[String](position, extractor) returns scopeCompletionResult
 }
 
@@ -36,7 +36,7 @@ trait typeCompletion extends completion {
   position.source returns source
   position.point returns offset
   position.withPoint(offset - 1) returns typeCompletionPosition
-  completionTypeDetector.detect(position) returns CompletionType.Type
+  completionTypeDetector.detect(position) returns CompletionTypes.Type
   compiler.typeCompletion[String](typeCompletionPosition, extractor) returns typeCompletionResult
 }
 
@@ -52,7 +52,7 @@ class CompletionHandlerSpec extends Specification with Mockito {
     }
 
     "return empty list when no completion" in new completion {
-      completionTypeDetector.detect(position) returns CompletionType.NoCompletion
+      completionTypeDetector.detect(position) returns CompletionTypes.NoCompletion
 
       handler.complete(position) must be empty
     }
