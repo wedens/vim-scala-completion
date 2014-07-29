@@ -3,10 +3,9 @@ package vim.scalacompletion.filesystem
 import java.nio.file.Paths
 import akka.actor.{Actor, ActorContext, ActorRef, Props}
 
-class SourcesWatchActorFactory(context: ActorContext,
-                               scalaSourcesFinder: ScalaSourcesFinder,
+class SourcesWatchActorFactory(scalaSourcesFinder: ScalaSourcesFinder,
                                watchService: WatchService) {
-  def create(facade: ActorRef) = {
+  def create(facade: ActorRef)(implicit context: ActorContext) = {
     context.actorOf(Props(new SourcesWatchActor(facade, watchService, scalaSourcesFinder)))
   }
 }

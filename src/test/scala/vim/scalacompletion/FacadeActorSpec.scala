@@ -38,7 +38,6 @@ trait createdFacade extends Scope
   var configLoader = mock[ConfigLoader]
   var compilerFactory = mock[CompilerFactory]
   var sourcesWatchActorFactory = mock[SourcesWatchActorFactory]
-  var watchService = mock[WatchService]
   val completionHandlerFactory = mock[CompletionHandlerFactory[String]]
   val completionHandler = mock[CompletionHandler[String]]
 
@@ -50,7 +49,6 @@ trait createdFacade extends Scope
     val compilerFactory = outerSelf.compilerFactory
     val configLoader = outerSelf.configLoader
     val sourcesWatchActorFactory = outerSelf.sourcesWatchActorFactory
-    val watchService = outerSelf.watchService
     val completionHandlerFactory = outerSelf.completionHandlerFactory
   })
 }
@@ -78,7 +76,7 @@ class facadeInit(override implicit val system: ActorSystem) extends facadeSource
       }
   })
   val sourcesWatcher = sourcesWatcherProbe.ref
-  sourcesWatchActorFactory.create(facade) returns sourcesWatcher
+  sourcesWatchActorFactory.create(meq(facade))(any) returns sourcesWatcher
 
   completionHandlerFactory.create(compilerMock) returns completionHandler
   compilerFactory.create(any) returns compilerMock

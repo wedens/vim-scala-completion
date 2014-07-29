@@ -8,11 +8,13 @@ import org.specs2.specification.Scope
 import vim.scalacompletion.compiler.{MemberInfoExtractor, Compiler}
 
 import scala.reflect.internal.util.{Position, SourceFile}
+import scala.tools.nsc.interactive.Global
 
 trait completion extends Scope with Mockito with ThrownExpectations {
   val completionTypeDetector = mock[CompletionTypeDetector]
   val compiler = mock[Compiler]
   val extractor = mock[MemberInfoExtractor[String]]
+  val extractorBound = mock[Function1[Global#Member, String]]
   val filter = mock[MemberFilter[String]]
   val memberRankCalculator = mock[MemberRankCalculator[String]]
   val handler = new CompletionHandler(completionTypeDetector,
@@ -20,12 +22,14 @@ trait completion extends Scope with Mockito with ThrownExpectations {
                                       memberRankCalculator)
   val position = mock[Position]
   filter.apply(any, any) returns true
+  extractor.apply(compiler) returns extractorBound
 }
 
 trait scopeCompletion extends completion {
   val scopeCompletionResult = Seq("String", "Option", "Seq")
   completionTypeDetector.detect(position) returns CompletionTypes.Scope
-  compiler.scopeCompletion[String](position, extractor) returns scopeCompletionResult
+  // TODO: if i change any to extractorBound, it throws NPE
+  compiler.scopeCompletion[String](meq(position), any) returns scopeCompletionResult
 }
 
 trait typeCompletion extends completion {
@@ -37,7 +41,7 @@ trait typeCompletion extends completion {
   position.point returns offset
   position.withPoint(offset - 1) returns typeCompletionPosition
   completionTypeDetector.detect(position) returns CompletionTypes.Type
-  compiler.typeCompletion[String](typeCompletionPosition, extractor) returns typeCompletionResult
+  compiler.typeCompletion[String](meq(typeCompletionPosition), any) returns typeCompletionResult
 }
 
 class CompletionHandlerSpec extends Specification with Mockito {

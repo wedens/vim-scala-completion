@@ -2,18 +2,10 @@ package vim.scalacompletion.compiler
 
 import scala.tools.nsc.interactive.Global
 
-trait MemberInfoExtractorFactory[T] {
-  def create(compiler: Global): MemberInfoExtractor[T]
-}
+trait MemberInfoExtractor[T] extends (Global => Global#Member => T)
 
-class MemberInfoExtractorFactoryImpl extends MemberInfoExtractorFactory[MemberInfo] {
-  def create(compiler: Global): MemberInfoExtractor[MemberInfo] = new MemberInfoExtractorForMemberInfo(compiler)
-}
-
-trait MemberInfoExtractor[T] extends (Global#Member => T)
-
-class MemberInfoExtractorForMemberInfo(compiler: Global) extends MemberInfoExtractor[MemberInfo] {
-  def apply(member: Global#Member): MemberInfo = {
+class MemberInfoExtractorForMemberInfo extends MemberInfoExtractor[MemberInfo] {
+  def apply(compiler: Global) = (member: Global#Member) => {
     import compiler.definitions
 
     val sym = member.sym

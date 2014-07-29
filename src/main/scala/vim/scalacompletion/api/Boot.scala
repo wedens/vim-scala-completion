@@ -6,24 +6,50 @@ import akka.io.IO
 import spray.can.Http
 import vim.scalacompletion.WithLog
 import akka.util.Timeout
-import vim.scalacompletion.filesystem.WatchService
+import vim.scalacompletion.filesystem._
+import vim.scalacompletion.compiler._
+import vim.scalacompletion.completion._
+import vim.scalacompletion._
 import scala.concurrent.duration._
-import vim.scalacompletion.FacadeFactoryImpl
 
 object Boot extends App with WithLog {
   logg.info("Starting application...")
-  implicit val system = ActorSystem("vim-scalacompletion")
 
-  val watchService: WatchService = new WatchService()
-  val watchServiceThread = new Thread(watchService, "WatchService")
+  lazy val watchService             = new WatchService
+  lazy val scalaSourcesFinder       = new ScalaSourcesFinder
+  lazy val sourcesWatchActorFactory = new SourcesWatchActorFactory(
+                                            scalaSourcesFinder,
+                                            watchService)
+
+  lazy val completionTypeDetector   = new CompletionTypeDetector
+  lazy val extractor                = new MemberInfoExtractorForMemberInfo
+  lazy val membersFilter            = MemberInfoFilter
+  lazy val memberRankCalculator     = MemberRankCalculatorImpl
+  lazy val completionHandlerFactory = new CompletionHandlerFactory(
+                                            completionTypeDetector,
+                                            extractor,
+                                            membersFilter,
+                                            memberRankCalculator)
+
+  lazy val configLoader             = new ConfigLoader
+  lazy val sourceFileFactory        = new SourceFileFactoryImpl
+  lazy val compilerFactory          = new CompilerFactoryImpl
+  lazy val facadeFactory            = new FacadeFactory(
+                                            configLoader,
+                                            sourceFileFactory,
+                                            scalaSourcesFinder,
+                                            sourcesWatchActorFactory,
+                                            compilerFactory,
+                                            completionHandlerFactory)
+
+  lazy val transformer              = new VimFormatTransformer()
+
+  val watchServiceThread            = new Thread(watchService, "WatchService")
   watchServiceThread.setDaemon(true)
   //TODO: start after successful initialization
   watchServiceThread.start() //stopped in api actor
 
-  val facadeFactory = new FacadeFactoryImpl(watchService)
-
-  val transformer = new VimFormatTransformer()
-
+  implicit val system = ActorSystem("vim-scalacompletion")
   val api = system.actorOf(Props(new SprayApiActor(transformer, facadeFactory, watchServiceThread)), "api")
 
   implicit val bindingTimeout = Timeout(1.second)

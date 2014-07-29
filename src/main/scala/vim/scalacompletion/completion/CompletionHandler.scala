@@ -1,22 +1,20 @@
 package vim.scalacompletion.completion
 
 import vim.scalacompletion._
-import vim.scalacompletion.compiler.{MemberInfoExtractorFactory, MemberInfoExtractor, MemberInfo, Compiler}
+import vim.scalacompletion.compiler.{MemberInfoExtractor, MemberInfo, Compiler}
 
 import scala.reflect.internal.util.Position
 
-trait CompletionHandlerFactory[T] {
-  def create(compiler: Compiler): CompletionHandler[T]
-}
+class CompletionHandlerFactory[T](
+    completionTypeDetector: CompletionTypeDetector,
+    extractor: MemberInfoExtractor[T],
+    membersFilter: MemberFilter[T],
+    memberRankCalculator: MemberRankCalculator[T]
+  ) {
 
-class CompletionHandlerFactoryForMemberInfo(
-      memberInfoExtractorFactory: MemberInfoExtractorFactory[MemberInfo]
-    ) extends CompletionHandlerFactory[MemberInfo] {
-
-  def create(compiler: Compiler): CompletionHandler[MemberInfo] =
-    new CompletionHandler(new CompletionTypeDetector, compiler,
-      memberInfoExtractorFactory.create(compiler), MemberInfoFilter,
-      MemberRankCalculatorImpl)
+  def create(compiler: Compiler): CompletionHandler[T] =
+    new CompletionHandler[T](completionTypeDetector, compiler,
+                  extractor, membersFilter, memberRankCalculator)
 }
 
 class CompletionHandler[T](
@@ -25,6 +23,7 @@ class CompletionHandler[T](
                 extractor: MemberInfoExtractor[T],
                 membersFilter: MemberFilter[T],
                 memberRankCalculator: MemberRankCalculator[T]) extends WithLog {
+  val extractorBound = extractor(compiler)
 
   def complete(positionAfter: Position, prefix: Option[String] = None,
                                    maxResults: Option[Int] = None): Seq[T] = {
@@ -33,8 +32,8 @@ class CompletionHandler[T](
       case CompletionTypes.Type =>
         val pointAtCompletionPos = positionAfter.point - 1
         val completionPos = positionAfter.withPoint(pointAtCompletionPos)
-        compiler.typeCompletion(completionPos, extractor)
-      case CompletionTypes.Scope => compiler.scopeCompletion(positionAfter, extractor)
+        compiler.typeCompletion(completionPos, extractorBound)
+      case CompletionTypes.Scope => compiler.scopeCompletion(positionAfter, extractorBound)
       case _ => Seq.empty
     }
 
