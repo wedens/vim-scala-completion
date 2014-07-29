@@ -6,9 +6,11 @@ import akka.io.IO
 import spray.can.Http
 import vim.scalacompletion.WithLog
 import akka.util.Timeout
-import vim.scalacompletion.filesystem.WatchService
+import vim.scalacompletion.filesystem._
+import vim.scalacompletion.compiler._
+import vim.scalacompletion.completion._
+import vim.scalacompletion._
 import scala.concurrent.duration._
-import vim.scalacompletion.FacadeFactoryImpl
 
 object Boot extends App with WithLog {
   logg.info("Starting application...")
@@ -20,7 +22,28 @@ object Boot extends App with WithLog {
   //TODO: start after successful initialization
   watchServiceThread.start() //stopped in api actor
 
-  val facadeFactory = new FacadeFactoryImpl(watchService)
+  val compilerFactory = new CompilerFactoryImpl
+  val sourceFileFactory = new SourceFileFactoryImpl
+  val scalaSourcesFinder = new ScalaSourcesFinder
+  val configLoader = new ConfigLoader
+  val sourcesWatchActorFactory = new SourcesWatchActorFactory(scalaSourcesFinder,
+                                                              watchService)
+
+  val completionTypeDetector = new CompletionTypeDetector
+  val membersFilter = MemberInfoFilter
+  val memberRankCalculator = MemberRankCalculatorImpl
+  val extractor = new MemberInfoExtractorForMemberInfo
+  val completionHandlerFactory = new CompletionHandlerFactory(completionTypeDetector,
+                                                              extractor,
+                                                              membersFilter,
+                                                              memberRankCalculator)
+
+  val facadeFactory = new FacadeFactoryImpl(compilerFactory,
+                                            sourceFileFactory,
+                                            scalaSourcesFinder,
+                                            configLoader,
+                                            sourcesWatchActorFactory,
+                                            completionHandlerFactory)
 
   val transformer = new VimFormatTransformer()
 

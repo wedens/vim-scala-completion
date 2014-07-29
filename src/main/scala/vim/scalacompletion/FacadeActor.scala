@@ -21,14 +21,14 @@ object FacadeActor {
   case object Initialized
 }
 
-class FacadeActorImpl(watchService: WatchService) extends FacadeActor[MemberInfo] {
-  override val compilerFactory = new CompilerFactoryImpl()
-  override val sourceFileFactory = new SourceFileFactoryImpl
-  override val scalaSourcesFinder = new ScalaSourcesFinder
-  override val configLoader = new ConfigLoader()
-  override val sourcesWatchActorFactory = new SourcesWatchActorFactory(context, scalaSourcesFinder, watchService)
-  override val completionHandlerFactory = new CompletionHandlerFactoryForMemberInfo(new MemberInfoExtractorFactoryImpl)
-}
+class FacadeActorImpl(
+  override val compilerFactory: CompilerFactory,
+  override val sourceFileFactory: SourceFileFactory,
+  override val scalaSourcesFinder: ScalaSourcesFinder,
+  override val configLoader: ConfigLoader,
+  override val sourcesWatchActorFactory: SourcesWatchActorFactory,
+  override val completionHandlerFactory: CompletionHandlerFactory[MemberInfo]
+) extends FacadeActor[MemberInfo]
 
 trait FacadeActor[MemberInfoType] extends Actor with WithLog {
   import FacadeActor._
@@ -40,7 +40,6 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
   val compilerFactory: CompilerFactory
   val completionHandlerFactory: CompletionHandlerFactory[MemberInfoType]
 
-  var extractor: MemberInfoExtractor[MemberInfoType] = _
   var compiler: Compiler = _
   var sourcesWatcher: ActorRef = _
   var completionHandler: CompletionHandler[MemberInfoType] = _
