@@ -11,16 +11,11 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 
 class SprayApiActor(override val transformer: FormatTransformer[MemberInfo],
-                    override val facadeFactory: FacadeFactory[MemberInfo],
-                    watchServiceThread: Thread) extends Actor with SprayApi[MemberInfo] {
+                    override val facadeFactory: FacadeFactory[MemberInfo]
+                    ) extends Actor with SprayApi[MemberInfo] {
 
   def actorRefFactory = context
   def receive = runRoute(apiRoutes)
-
-  // should be better place to do it...
-  override def postStop() = {
-    watchServiceThread.interrupt()
-  }
 }
 
 trait SprayApi[T] extends HttpService {
