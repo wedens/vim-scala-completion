@@ -47,7 +47,8 @@ object Boot extends App with WithLog {
   lazy val watchServiceThread       = new Thread(watchService, "WatchService")
 
   implicit val system = ActorSystem("vim-scalacompletion")
-  val api = system.actorOf(Props(new SprayApiActor(transformer, facadeFactory)), "api")
+  val projects = system.actorOf(Props(new Projects(facadeFactory)), "Projects")
+  val api = system.actorOf(Props(new SprayApiActor(transformer, projects)), "api")
 
   val apiWatcher = system.actorOf(Props(new Actor {
     context.watch(api)

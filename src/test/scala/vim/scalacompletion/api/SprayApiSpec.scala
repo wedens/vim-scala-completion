@@ -4,57 +4,51 @@ import org.specs2.mutable.Specification
 import org.specs2.mock._
 import org.specs2.specification.BeforeExample
 import org.specs2.time.NoTimeConversions
+import org.specs2.specification.Scope
+import org.specs2.matcher.ThrownExpectations
 import org.mockito.Matchers.{eq => meq}
-import spray.testkit.Specs2RouteTest
 import akka.testkit.{TestProbe, TestActor}
+import akka.actor.{ActorSystem, Actor, ActorRef}
+import spray.testkit.Specs2RouteTest
 import spray.routing.HttpService
 import spray.http.StatusCodes._
 import spray.http.FormData
-import akka.actor.{ActorSystem, Actor, ActorRef}
 import java.net.URLEncoder
+
 import vim.scalacompletion.{FacadeActor, FacadeFactory}
 import FacadeActor._
 
+class apiSetup(implicit sys: ActorSystem) extends Scope
+                                          with Mockito
+                                          with ThrownExpectations
+                                          with SprayApi[String] {
+  override def actorRefFactory = sys
+  val projectsProbe = TestProbe()
+  projectsProbe.setAutoPilot(new TestActor.AutoPilot {
+    def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
+      msg match {
+        case _: CompleteAt =>
+          sender ! CompletionResult(Seq[String]())
+          TestActor.KeepRunning
+        case _ : FacadeActor.Init =>
+          sender ! FacadeActor.Initialized
+          TestActor.KeepRunning
+        case _ =>
+          TestActor.KeepRunning
+     }
+  })
+  val projects = projectsProbe.ref
+  val transformer = mock[FormatTransformer[String]]
+}
+
 class SprayApiSpec extends Specification
                    with Specs2RouteTest
-                   with SprayApi[String]
-                   with Mockito
-                   with BeforeExample
                    with NoTimeConversions {
 
-  def actorRefFactory = system
-
-  var facadeProbe: TestProbe = _
-  val transformer = mock[FormatTransformer[String]]
-  val facadeFactory = mock[FacadeFactory[String]]
-
-  val path = "/src/main/scala/pkg/Source.scala"
+  val sourcePath = "/src/main/scala/pkg/Source.scala"
   val tempPath = "/tmp/6157147744291722932"
-  val urlEncodedName = URLEncoder.encode(path, "UTF-8")
+  val urlEncodedName = URLEncoder.encode(sourcePath, "UTF-8")
   val urlEncodedFilePath = URLEncoder.encode(tempPath, "UTF-8")
-
-  def before = {
-     org.mockito.Mockito.reset(transformer)
-     org.mockito.Mockito.reset(facadeFactory)
-
-     facadeProbe = TestProbe()
-     facade = facadeProbe.ref
-     facadeProbe.setAutoPilot(new TestActor.AutoPilot {
-       def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
-         msg match {
-           case _: CompleteAt =>
-             sender ! CompletionResult(Seq[String]())
-             TestActor.KeepRunning
-           case _ : FacadeActor.Init =>
-             sender ! FacadeActor.Initialized
-             TestActor.KeepRunning
-           case _ =>
-             TestActor.KeepRunning
-         }
-     })
-
-     facadeFactory.createFacade(any) returns facade
-  }
 
   sequential
 
@@ -62,74 +56,56 @@ class SprayApiSpec extends Specification
     "GET /completion" should {
       def completionRequest(prefix: Option[String] = Some("abc")) = {
         val pfx = prefix.map(p => "&prefix=" + p) getOrElse ""
-        Get(s"/completion?offset=25&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}") ~> apiRoutes
+        Get(s"/completion?offset=25&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}")
       }
 
-      "call completion" in {
+      "call completion with correct position" in new apiSetup {
         transformer.transformCompletion(any) returns ""
-        completionRequest() ~> check {
-          facadeProbe.expectMsgType[CompleteAt]
-          ok
+        completionRequest() ~> apiRoutes ~> check {
+          projectsProbe.expectMsgType[CompleteAt].offset must_== 25
         }
       }
 
-      "call completion with correct position" in {
+      "call completion with correct name" in new apiSetup {
         transformer.transformCompletion(any) returns ""
-        completionRequest() ~> check {
-          facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _, 25, _) => ok
-          }
+        completionRequest() ~> apiRoutes ~> check {
+          projectsProbe.expectMsgType[CompleteAt].name must_== sourcePath
         }
       }
 
-      "call completion with correct name" in {
+      "call completion with correct file path" in new apiSetup {
         transformer.transformCompletion(any) returns ""
-        completionRequest() ~> check {
-          facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_name, _, _, _) => _name must_== path
-          }
+        completionRequest() ~> apiRoutes ~> check {
+          projectsProbe.expectMsgType[CompleteAt].path must_== tempPath
         }
       }
 
-      "call completion with correct file path" in {
+      "call completion with correct prefix" in new apiSetup {
         transformer.transformCompletion(any) returns ""
-        completionRequest() ~> check {
-          facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _path, _, _) => _path must_== tempPath
-          }
+        completionRequest() ~> apiRoutes ~> check {
+          projectsProbe.expectMsgType[CompleteAt].prefix must beSome("abc")
         }
       }
 
-      "call completion with correct prefix" in {
+      "call completion without prefix" in new apiSetup {
         transformer.transformCompletion(any) returns ""
-        completionRequest() ~> check {
-          facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _, _, Some("abc")) => ok
-          }
+        completionRequest(prefix = None) ~> apiRoutes ~> check {
+          projectsProbe.expectMsgType[CompleteAt].prefix must beNone
         }
       }
 
-      "call completion without prefix" in {
+      "transform completion result" in new apiSetup {
         transformer.transformCompletion(any) returns ""
-        completionRequest(prefix = None) ~> check {
-          facadeProbe.expectMsgType[CompleteAt] must beLike {
-            case CompleteAt(_, _, _, None) => ok
-          }
-        }
-      }
-
-      "transform completion result" in {
-        transformer.transformCompletion(any) returns ""
-        completionRequest() ~> check {
+        completionRequest() ~> apiRoutes ~> check {
           there was one(transformer).transformCompletion(any)
         }
       }
 
-      "complete request with transformed completion" in {
+      "complete request with transformed completion" in new apiSetup {
         val transformed = "[{'word': 'a'}, {'word': 'b'}]"
         transformer.transformCompletion(any) returns transformed
 
-        completionRequest() ~> check {
+        completionRequest() ~> apiRoutes ~> check {
           responseAs[String] must_== transformed
         }
       }
@@ -137,16 +113,16 @@ class SprayApiSpec extends Specification
 
     "POST /init" should {
       val configPath = "vim_scala_completion.conf"
-      def initRequest = Post(s"/init", FormData(Map("conf" -> configPath))) ~> apiRoutes
+      def initRequest = Post(s"/init", FormData(Map("conf" -> configPath)))
 
-      "initialize facade with config path" in {
-        initRequest ~> check {
-          facadeProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPath)
+      "initialize facade with config path" in new apiSetup {
+        initRequest ~> apiRoutes ~> check {
+          projectsProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPath)
         }
       }
 
-      "complete with config path" in {
-        initRequest ~> check {
+      "complete with config path" in new apiSetup {
+        initRequest ~> apiRoutes ~> check {
           responseAs[String] must_== configPath
         }
       }

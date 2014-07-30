@@ -5,26 +5,24 @@ import org.specs2.mock._
 import org.specs2.time.NoTimeConversions
 import org.specs2.specification.Scope
 import org.specs2.matcher.ThrownExpectations
-import vim.scalacompletion.compiler.{Compiler, CompilerFactory}
-import vim.scalacompletion.completion.{CompletionHandlerFactory, CompletionHandler}
-import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService, SourcesWatchActor, SourcesWatchActorFactory}
-import scala.concurrent.duration._
-import scala.reflect.internal.util.Position
-import scala.tools.nsc.interactive.Global
-import scala.reflect.internal.util.SourceFile
-import scala.concurrent.duration._
-// import org.specs2.specification.BeforeExample
 import org.mockito.Matchers.{eq => meq}
+import scala.reflect.internal.util.Position
+import scala.reflect.internal.util.SourceFile
+import scala.tools.nsc.interactive.Global
+import scala.concurrent.duration._
+import scala.util.{Try, Success, Failure}
+import collection.JavaConversions._
 import java.io.{File => JFile}
 import akka.actor._
 import akka.pattern.ask
 import akka.testkit._
 import akka.util.Timeout
-import scala.util.{Try, Success, Failure}
 import com.typesafe.config.Config
-import collection.JavaConversions._
+
+import vim.scalacompletion.compiler.{Compiler, CompilerFactory}
+import vim.scalacompletion.completion.{CompletionHandlerFactory, CompletionHandler}
+import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService, SourcesWatchActor, SourcesWatchActorFactory}
 import FacadeActor._
-import scala.reflect.internal.util.Position
 
 trait createdFacade extends Scope
              with Mockito

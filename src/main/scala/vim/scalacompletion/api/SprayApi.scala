@@ -11,7 +11,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 
 class SprayApiActor(override val transformer: FormatTransformer[MemberInfo],
-                    override val facadeFactory: FacadeFactory[MemberInfo]
+                    override val projects: ActorRef
                     ) extends Actor with SprayApi[MemberInfo] {
 
   def actorRefFactory = context
@@ -19,9 +19,8 @@ class SprayApiActor(override val transformer: FormatTransformer[MemberInfo],
 }
 
 trait SprayApi[T] extends HttpService {
-  var facade: ActorRef = _
   val transformer: FormatTransformer[T]
-  val facadeFactory: FacadeFactory[T]
+  val projects: ActorRef
 
   implicit val timeout = Timeout(5.seconds)
   implicit def executionContext = actorRefFactory.dispatcher
@@ -29,7 +28,8 @@ trait SprayApi[T] extends HttpService {
   val apiRoutes = path("completion") {
     get {
       parameters('name, 'file_path, 'offset.as[Int], 'prefix.?) { (name, filePath, offset, prefix) =>
-        val future = (facade ? CompleteAt(name, filePath, offset, prefix)).mapTo[CompletionResult[T]].map { result =>
+        val future = (projects ? CompleteAt(name, filePath, offset, prefix))
+                    .mapTo[CompletionResult[T]].map { result =>
           transformer.transformCompletion(result.members)
         }
         complete(future)
@@ -39,9 +39,8 @@ trait SprayApi[T] extends HttpService {
   path("init") {
     post {
       formField('conf) { configPath =>
-        facade = facadeFactory.createFacade(actorRefFactory)
         //TODO: tests that it was ask, and not tell
-        val future = (facade ? FacadeActor.Init(configPath)).map { _=> configPath }
+        val future = (projects ? FacadeActor.Init(configPath)).map { _=> configPath }
         complete(future)
       }
     }

@@ -1,12 +1,13 @@
 package vim.scalacompletion
 
 import java.io.{File => JFile}
-import akka.actor.{Actor, ActorRef}
+import akka.actor.{Actor, ActorRef, ActorLogging}
 import akka.pattern.ask
 import akka.util.Timeout
 import vim.scalacompletion.compiler._
 import vim.scalacompletion.completion._
-import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService, SourcesWatchActor, SourcesWatchActorFactory}
+import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService,
+                                       SourcesWatchActor, SourcesWatchActorFactory}
 import scala.concurrent.duration._
 import collection.JavaConversions._
 
@@ -21,7 +22,7 @@ object FacadeActor {
   case object Initialized
 }
 
-trait FacadeActor[MemberInfoType] extends Actor with WithLog {
+trait FacadeActor[MemberInfoType] extends Actor with ActorLogging {
   import FacadeActor._
 
   val configLoader: ConfigLoader
@@ -43,6 +44,10 @@ trait FacadeActor[MemberInfoType] extends Actor with WithLog {
     case CompleteAt(name, path, offset, prefix) => completeAt(name, path, offset, prefix)
     case ReloadSources(sources)                 => reloadSources(sources)
     case RemoveSources(sources)                 => removeSources(sources)
+  }
+
+  override def postRestart(ex: Throwable) = {
+    log.warning("Project restarted after failure", ex)
   }
 
   def completeAt(name: String, path: String, offset: Int, prefix: Option[String]) = {
