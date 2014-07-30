@@ -5,7 +5,7 @@ import vim.scalacompletion.compiler._
 import vim.scalacompletion.filesystem._
 import vim.scalacompletion.completion._
 
-class FacadeFactory[T](
+class ProjectFactory[T](
     configLoader: ConfigLoader,
     sourceFileFactory: SourceFileFactory,
     scalaSourcesFinder: ScalaSourcesFinder,
@@ -14,9 +14,9 @@ class FacadeFactory[T](
     completionHandlerFactory: CompletionHandlerFactory[T]
   ) { factory =>
 
-  def createFacade(actorRefFactory: ActorRefFactory): ActorRef =
+  def createProject(actorRefFactory: ActorRefFactory): ActorRef =
     actorRefFactory.actorOf(Props(
-      new FacadeActor[T] {
+      new Project[T] {
         override val compilerFactory          = factory.compilerFactory
         override val sourceFileFactory        = factory.sourceFileFactory
         override val scalaSourcesFinder       = factory.scalaSourcesFinder

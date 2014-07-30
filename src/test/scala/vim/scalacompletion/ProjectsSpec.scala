@@ -13,11 +13,11 @@ import java.nio.file.{Path, Paths}
 class init(implicit val system: ActorSystem) extends Scope
                                                  with Mockito
                                                  with ThrownExpectations {
-  val facadeProbe = TestProbe()
-  val facade = facadeProbe.ref
-  val facadeFactory = mock[FacadeFactory[Any]]
-  val projects = TestActorRef(new Projects(facadeFactory))
-  facadeFactory.createFacade(any) returns facade
+  val projectProbe = TestProbe()
+  val project = projectProbe.ref
+  val projectFactory = mock[ProjectFactory[Any]]
+  val projects = TestActorRef(new Projects(projectFactory))
+  projectFactory.createProject(any) returns project
 
 
   val projectPathStr = "/tmp/dir"
@@ -31,7 +31,7 @@ class existingProject(override implicit val system: ActorSystem) extends init {
   val project2 = mock[Projects.ProjectInfo]
   project1.contains(fileName) returns false
   project2.contains(fileName) returns true
-  project2.facade returns facade
+  project2.project returns project
   projects.underlyingActor.projects = Map((Paths.get("/opt") -> project1),
                                           (projectPath -> project2))
 }
@@ -42,11 +42,11 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
                       with NoTimeConversions {
 
   "projects" should {
-    "obtaining facade by path" should {
-      "respond with facade" in new existingProject {
-        projects ! Projects.GetFacadeFor(fileName.toString)
+    "obtaining project by path" should {
+      "respond with project" in new existingProject {
+        projects ! Projects.GetProjectFor(fileName.toString)
 
-        expectMsgType[ActorRef] must_== facade
+        expectMsgType[ActorRef] must_== project
       }
     }
 
@@ -60,7 +60,7 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
       "initialize project" in new init {
         projects ! Projects.Create(configPathStr)
 
-        facadeProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPathStr)
+        projectProbe.expectMsgType[Project.Init] must_== Project.Init(configPathStr)
       }
     }
   }

@@ -15,17 +15,17 @@ import spray.http.StatusCodes._
 import spray.http.FormData
 import java.net.URLEncoder
 
-import vim.scalacompletion.{FacadeActor, FacadeFactory}
+import vim.scalacompletion.{Project, ProjectFactory}
 import vim.scalacompletion.Projects
-import vim.scalacompletion.FacadeActor._
+import vim.scalacompletion.Project._
 
 class apiSetup(implicit sys: ActorSystem) extends Scope
                                           with Mockito
                                           with ThrownExpectations
                                           with SprayApi[String] {
   override def actorRefFactory = sys
-  val facadeProbe = TestProbe()
-  facadeProbe.setAutoPilot(new TestActor.AutoPilot {
+  val projectProbe = TestProbe()
+  projectProbe.setAutoPilot(new TestActor.AutoPilot {
     def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
       msg match {
         case _: CompleteAt =>
@@ -33,16 +33,16 @@ class apiSetup(implicit sys: ActorSystem) extends Scope
           TestActor.KeepRunning
      }
   })
-  val facade = facadeProbe.ref
+  val project = projectProbe.ref
   val projectsProbe = TestProbe()
   projectsProbe.setAutoPilot(new TestActor.AutoPilot {
     def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
       msg match {
-        case _: Projects.GetFacadeFor =>
-          sender ! facade
+        case _: Projects.GetProjectFor =>
+          sender ! project
           TestActor.KeepRunning
         case _: Projects.Create =>
-          sender ! FacadeActor.Initialized
+          sender ! Project.Initialized
           TestActor.KeepRunning
      }
   })
@@ -71,35 +71,35 @@ class SprayApiSpec extends Specification
       "call completion with correct position" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          facadeProbe.expectMsgType[CompleteAt].offset must_== 25
+          projectProbe.expectMsgType[CompleteAt].offset must_== 25
         }
       }
 
       "call completion with correct name" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          facadeProbe.expectMsgType[CompleteAt].name must_== sourcePath
+          projectProbe.expectMsgType[CompleteAt].name must_== sourcePath
         }
       }
 
       "call completion with correct file path" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          facadeProbe.expectMsgType[CompleteAt].path must_== tempPath
+          projectProbe.expectMsgType[CompleteAt].path must_== tempPath
         }
       }
 
       "call completion with correct prefix" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          facadeProbe.expectMsgType[CompleteAt].prefix must beSome("abc")
+          projectProbe.expectMsgType[CompleteAt].prefix must beSome("abc")
         }
       }
 
       "call completion without prefix" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest(prefix = None) ~> apiRoutes ~> check {
-          facadeProbe.expectMsgType[CompleteAt].prefix must beNone
+          projectProbe.expectMsgType[CompleteAt].prefix must beNone
         }
       }
 
@@ -124,7 +124,7 @@ class SprayApiSpec extends Specification
       val configPath = "vim_scala_completion.conf"
       def initRequest = Post(s"/init", FormData(Map("conf" -> configPath)))
 
-      "initialize facade with config path" in new apiSetup {
+      "initialize project with config path" in new apiSetup {
         initRequest ~> apiRoutes ~> check {
           projectsProbe.expectMsgType[Projects.Create] must_== Projects.Create(configPath)
         }

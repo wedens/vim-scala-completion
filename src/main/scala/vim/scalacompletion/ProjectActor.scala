@@ -11,7 +11,7 @@ import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService,
 import scala.concurrent.duration._
 import collection.JavaConversions._
 
-object FacadeActor {
+object Project {
   case class CompleteAt(name: String, path: String,
     offset: Int, prefix: Option[String])
   case class CompletionResult[T](members: Seq[T])
@@ -22,8 +22,8 @@ object FacadeActor {
   case object Initialized
 }
 
-trait FacadeActor[MemberInfoType] extends Actor with ActorLogging {
-  import FacadeActor._
+trait Project[MemberInfoType] extends Actor with ActorLogging {
+  import Project._
 
   val configLoader: ConfigLoader
   val sourceFileFactory: SourceFileFactory

@@ -254,7 +254,7 @@ class CompletionTypeDetectorSpec extends Specification {
     }
 
     "detect type completion after parametrized method" in {
-      val line = "val future = (facade ? completeAt()).mapTo[CompletionResult[String]]. "
+      val line = "val future = (project ? completeAt()).mapTo[CompletionResult[String]]. "
 
       detector.detect(line, line.length - 1) must_== CompletionTypes.Type
     }

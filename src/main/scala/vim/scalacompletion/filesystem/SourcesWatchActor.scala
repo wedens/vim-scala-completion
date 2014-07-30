@@ -5,8 +5,8 @@ import akka.actor.{Actor, ActorContext, ActorRef, Props}
 
 class SourcesWatchActorFactory(scalaSourcesFinder: ScalaSourcesFinder,
                                watchService: WatchService) {
-  def create(facade: ActorRef)(implicit context: ActorContext) = {
-    context.actorOf(Props(new SourcesWatchActor(facade, watchService, scalaSourcesFinder)))
+  def create(project: ActorRef)(implicit context: ActorContext) = {
+    context.actorOf(Props(new SourcesWatchActor(project, watchService, scalaSourcesFinder)))
   }
 }
 
@@ -15,12 +15,12 @@ object SourcesWatchActor {
   case class Watching(dirs: Seq[String])
 }
 
-class SourcesWatchActor(facadeActor: ActorRef,
+class SourcesWatchActor(projectActor: ActorRef,
                         watchService: WatchService,
                         scalaSourcesFinder: ScalaSourcesFinder) extends Actor {
   import vim.scalacompletion.filesystem.FileSystemEvents._
   import vim.scalacompletion.filesystem.SourcesWatchActor._
-  import vim.scalacompletion.FacadeActor._
+  import vim.scalacompletion.Project._
 
   watchService.addObserver(self)
 
@@ -32,10 +32,10 @@ class SourcesWatchActor(facadeActor: ActorRef,
       }
       sender ! Watching(dirs)
     case Created(file) if scalaSourcesFinder.isScalaSource(file) =>
-      facadeActor ! ReloadSources(Seq(file))
+      projectActor ! ReloadSources(Seq(file))
     case Modified(file) if scalaSourcesFinder.isScalaSource(file) =>
-      facadeActor ! ReloadSources(Seq(file))
+      projectActor ! ReloadSources(Seq(file))
     case Deleted(file) if scalaSourcesFinder.isScalaSource(file) =>
-      facadeActor ! RemoveSources(Seq(file))
+      projectActor ! RemoveSources(Seq(file))
   }
 }

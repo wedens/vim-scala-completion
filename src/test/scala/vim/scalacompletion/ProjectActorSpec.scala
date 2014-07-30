@@ -22,9 +22,9 @@ import com.typesafe.config.Config
 import vim.scalacompletion.compiler.{Compiler, CompilerFactory}
 import vim.scalacompletion.completion.{CompletionHandlerFactory, CompletionHandler}
 import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService, SourcesWatchActor, SourcesWatchActorFactory}
-import FacadeActor._
+import Project._
 
-trait createdFacade extends Scope
+trait createdProject extends Scope
              with Mockito
              with ThrownExpectations { outerSelf =>
 
@@ -39,7 +39,7 @@ trait createdFacade extends Scope
   val completionHandlerFactory = mock[CompletionHandlerFactory[String]]
   val completionHandler = mock[CompletionHandler[String]]
 
-  val facade = TestActorRef(new FacadeActor[String] {
+  val project = TestActorRef(new Project[String] {
     compiler = outerSelf.compilerMock
     completionHandler = outerSelf.completionHandler
     val sourceFileFactory = outerSelf.sourceFileFactory
@@ -51,7 +51,7 @@ trait createdFacade extends Scope
   })
 }
 
-class facadeInit(override implicit val system: ActorSystem) extends facadeSources {
+class projectInit(override implicit val system: ActorSystem) extends projectSources {
   val sourceDir1 = mock[JFile]
   val sourceDir2 = mock[JFile]
   val sourceDirs = List(sourceDir1, sourceDir2)
@@ -74,13 +74,13 @@ class facadeInit(override implicit val system: ActorSystem) extends facadeSource
       }
   })
   val sourcesWatcher = sourcesWatcherProbe.ref
-  sourcesWatchActorFactory.create(meq(facade))(any) returns sourcesWatcher
+  sourcesWatchActorFactory.create(meq(project))(any) returns sourcesWatcher
 
   completionHandlerFactory.create(compilerMock) returns completionHandler
   compilerFactory.create(any) returns compilerMock
 }
 
-class facadeCompletion(override implicit val system: ActorSystem) extends createdFacade {
+class projectCompletion(override implicit val system: ActorSystem) extends createdProject {
   val source = mock[SourceFile]
   val position = mock[Position]
   val offset = 35
@@ -96,7 +96,7 @@ class facadeCompletion(override implicit val system: ActorSystem) extends create
 }
 
 
-class facadeSources(override implicit val system: ActorSystem) extends createdFacade {
+class projectSources(override implicit val system: ActorSystem) extends createdProject {
   val sourceFile1 = mock[JFile]
   val sourceFile2 = mock[JFile]
   val sourceFiles = List(sourceFile1, sourceFile2)
@@ -111,31 +111,31 @@ class facadeSources(override implicit val system: ActorSystem) extends createdFa
   sourceFileFactory.createSourceFile(sourceFile2Path) returns source
 }
 
-class FacadeActorSpec extends TestKit(ActorSystem("FacadeActorSpec"))
+class ProjectSpec extends TestKit(ActorSystem("ProjectSpec"))
                       with ImplicitSender
                       with SpecificationLike
                       with NoTimeConversions {
 
   implicit val timeout = Timeout(5.seconds)
 
-  "facade" should {
+  "project" should {
     "initialization" should {
       val configPath = "/tmp/xxx.conf" //TODO
 
-      "reload sources in path from config" in new facadeInit {
-        facade ! Init(configPath)
+      "reload sources in path from config" in new projectInit {
+        project ! Init(configPath)
 
         there was one(compilerMock).reloadSources(any)
       }
 
-      "start watching source dirs from config" in new facadeInit {
-        facade ! Init(configPath)
+      "start watching source dirs from config" in new projectInit {
+        project ! Init(configPath)
 
         sourcesWatcherProbe.expectMsgType[SourcesWatchActor.WatchDirs] must_== SourcesWatchActor.WatchDirs(sourceDirsStr)
       }
 
-      "respond with Initialized message" in new facadeInit {
-        val future = facade ? Init(configPath)
+      "respond with Initialized message" in new projectInit {
+        val future = project ? Init(configPath)
 
         val Success(result: Initialized.type) = future.value.get
         ok
@@ -150,27 +150,27 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeActorSpec"))
       def completeAt(prefix: Option[String] = None) =
         CompleteAt(sourceName, sourcePath, offset, prefix)
 
-      "respond with completion result" in new facadeCompletion {
-        val future = (facade ? completeAt()).mapTo[CompletionResult[String]]
+      "respond with completion result" in new projectCompletion {
+        val future = (project ? completeAt()).mapTo[CompletionResult[String]]
 
         val Success(result: CompletionResult[String]) = future.value.get
         result.members must_== completionResult
       }
 
-      "reload source before triggering completion" in new facadeCompletion {
-        facade ! completeAt()
+      "reload source before triggering completion" in new projectCompletion {
+        project ! completeAt()
 
         there was one(compilerMock).reloadSources(List(source))
       }
 
-      "call completion at position from source" in new facadeCompletion {
-        facade ! completeAt()
+      "call completion at position from source" in new projectCompletion {
+        project ! completeAt()
 
         there was one(completionHandler).complete(meq(position), any, any)
       }
 
-      "respond with completion result when prefix exists" in new facadeCompletion {
-        val future = (facade ? completeAt(prefix)).mapTo[CompletionResult[String]]
+      "respond with completion result when prefix exists" in new projectCompletion {
+        val future = (project ? completeAt(prefix)).mapTo[CompletionResult[String]]
 
         val Success(result: CompletionResult[String]) = future.value.get
         result.members must_== completionResultWithPrefix
@@ -178,16 +178,16 @@ class FacadeActorSpec extends TestKit(ActorSystem("FacadeActorSpec"))
     }
 
     "reloading source files" should {
-      "ask compiler to reload sources" in new facadeSources {
-        facade ! ReloadSources(Seq())
+      "ask compiler to reload sources" in new projectSources {
+        project ! ReloadSources(Seq())
 
         there was one(compilerMock).reloadSources(any)
       }
     }
 
     "removing source files" should {
-      "ask compiler to remove sources" in new facadeSources {
-        facade ! RemoveSources(Seq())
+      "ask compiler to remove sources" in new projectSources {
+        project ! RemoveSources(Seq())
 
         there was one(compilerMock).removeSources(any)
       }

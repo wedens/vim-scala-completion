@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.actor.{Actor, ActorRef}
 import vim.scalacompletion.compiler.MemberInfo
 import vim.scalacompletion.filesystem.SourcesWatchActor
-import vim.scalacompletion.FacadeActor._
+import vim.scalacompletion.Project._
 import vim.scalacompletion.Projects
 import akka.util.Timeout
 import scala.concurrent.duration._
@@ -29,8 +29,8 @@ trait SprayApi[T] extends HttpService {
     get {
       parameters('name, 'file_path, 'offset.as[Int], 'prefix.?) { (name, filePath, offset, prefix) =>
         val future = for {
-          facade           <- (projects ? Projects.GetFacadeFor(name)).mapTo[ActorRef]
-          completionResult <- (facade ? CompleteAt(name, filePath, offset, prefix))
+          project           <- (projects ? Projects.GetProjectFor(name)).mapTo[ActorRef]
+          completionResult <- (project ? CompleteAt(name, filePath, offset, prefix))
                                                            .mapTo[CompletionResult[T]]
         } yield transformer.transformCompletion(completionResult.members)
 

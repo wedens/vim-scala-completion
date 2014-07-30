@@ -34,7 +34,7 @@ object Boot extends App with WithLog {
   lazy val configLoader             = new ConfigLoader
   lazy val sourceFileFactory        = new SourceFileFactoryImpl
   lazy val compilerFactory          = new CompilerFactoryImpl
-  lazy val facadeFactory            = new FacadeFactory(
+  lazy val projectFactory            = new ProjectFactory(
                                             configLoader,
                                             sourceFileFactory,
                                             scalaSourcesFinder,
@@ -47,7 +47,7 @@ object Boot extends App with WithLog {
   lazy val watchServiceThread       = new Thread(watchService, "WatchService")
 
   implicit val system = ActorSystem("vim-scalacompletion")
-  val projects = system.actorOf(Props(new Projects(facadeFactory)), "Projects")
+  val projects = system.actorOf(Props(new Projects(projectFactory)), "Projects")
   val api = system.actorOf(Props(new SprayApiActor(transformer, projects)), "api")
 
   val apiWatcher = system.actorOf(Props(new Actor {

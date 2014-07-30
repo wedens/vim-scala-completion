@@ -5,7 +5,7 @@ import akka.testkit._
 import org.specs2.mock._
 import org.specs2.mutable._
 import org.specs2.specification.BeforeExample
-import vim.scalacompletion.FacadeActor.{ReloadSources, RemoveSources}
+import vim.scalacompletion.Project.{ReloadSources, RemoveSources}
 
 class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"))
                             with ImplicitSender
@@ -15,8 +15,8 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
 
   var watchService: WatchService = _
   var watchActor: TestActorRef[SourcesWatchActor] = _
-  var facadeProbe: TestProbe = _
-  var facade: ActorRef = _
+  var projectProbe: TestProbe = _
+  var project: ActorRef = _
   var sourcesFinder: ScalaSourcesFinder = _
 
   val sourceFile = mock[java.io.File]
@@ -28,9 +28,9 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
     sourcesFinder = mock[ScalaSourcesFinder]
     sourcesFinder.isScalaSource(sourceFile) returns true
     sourcesFinder.isScalaSource(otherFile) returns false
-    facadeProbe = TestProbe()
-    facade = facadeProbe.ref
-    watchActor = TestActorRef(new SourcesWatchActor(facade, watchService, sourcesFinder))
+    projectProbe = TestProbe()
+    project = projectProbe.ref
+    watchActor = TestActorRef(new SourcesWatchActor(project, watchService, sourcesFinder))
   }
 
   sequential
@@ -55,42 +55,42 @@ class SourcesWatchActorSpec extends TestKit(ActorSystem("ComplexSupervisionTest"
     "reload source when Created message received if file is scala source" in {
        watchActor ! FileSystemEvents.Created(sourceFile)
 
-       facadeProbe.expectMsgType[ReloadSources] must_== ReloadSources(Seq(sourceFile))
+       projectProbe.expectMsgType[ReloadSources] must_== ReloadSources(Seq(sourceFile))
        ok
     }
 
     "not reload file when Created message received and file is not scala source" in {
        watchActor ! FileSystemEvents.Created(otherFile)
 
-       facadeProbe.expectNoMsg()
+       projectProbe.expectNoMsg()
        ok
     }
 
     "reload source when Modified message received if file is scala source" in {
       watchActor ! FileSystemEvents.Modified(sourceFile)
 
-      facadeProbe.expectMsgType[ReloadSources] must_== ReloadSources(Seq(sourceFile))
+      projectProbe.expectMsgType[ReloadSources] must_== ReloadSources(Seq(sourceFile))
       ok
     }
 
     "not reload file when Modified message received and file is not scala source" in {
        watchActor ! FileSystemEvents.Modified(otherFile)
 
-       facadeProbe.expectNoMsg()
+       projectProbe.expectNoMsg()
        ok
     }
 
     "remove source when Deleted message received if file is scala source" in {
       watchActor ! FileSystemEvents.Deleted(sourceFile)
 
-      facadeProbe.expectMsgType[RemoveSources] must_== RemoveSources(Seq(sourceFile))
+      projectProbe.expectMsgType[RemoveSources] must_== RemoveSources(Seq(sourceFile))
       ok
     }
 
     "not remove file when Deleted message received and file is not scala source" in {
       watchActor ! FileSystemEvents.Deleted(otherFile)
 
-      facadeProbe.expectNoMsg()
+      projectProbe.expectNoMsg()
       ok
     }
   }
