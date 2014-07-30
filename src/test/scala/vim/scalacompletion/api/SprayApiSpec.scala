@@ -16,7 +16,8 @@ import spray.http.FormData
 import java.net.URLEncoder
 
 import vim.scalacompletion.{FacadeActor, FacadeFactory}
-import FacadeActor._
+import vim.scalacompletion.Projects
+import vim.scalacompletion.FacadeActor._
 
 class apiSetup(implicit sys: ActorSystem) extends Scope
                                           with Mockito
@@ -30,10 +31,8 @@ class apiSetup(implicit sys: ActorSystem) extends Scope
         case _: CompleteAt =>
           sender ! CompletionResult(Seq[String]())
           TestActor.KeepRunning
-        case _ : FacadeActor.Init =>
+        case _: Projects.Create =>
           sender ! FacadeActor.Initialized
-          TestActor.KeepRunning
-        case _ =>
           TestActor.KeepRunning
      }
   })
@@ -117,7 +116,7 @@ class SprayApiSpec extends Specification
 
       "initialize facade with config path" in new apiSetup {
         initRequest ~> apiRoutes ~> check {
-          projectsProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPath)
+          projectsProbe.expectMsgType[Projects.Create] must_== Projects.Create(configPath)
         }
       }
 

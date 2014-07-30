@@ -44,13 +44,13 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
   "projects" should {
     "project creation" should {
       "create new project" in new init {
-        projects ! FacadeActor.Init(configPathStr)
+        projects ! Projects.Create(configPathStr)
 
         projects.underlyingActor.projects must have size 1
       }
 
       "initialize project" in new init {
-        projects ! FacadeActor.Init(configPathStr)
+        projects ! Projects.Create(configPathStr)
 
         facadeProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPathStr)
       }

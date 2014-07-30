@@ -5,8 +5,8 @@ import akka.pattern.ask
 import akka.actor.{Actor, ActorRef}
 import vim.scalacompletion.compiler.MemberInfo
 import vim.scalacompletion.filesystem.SourcesWatchActor
-import vim.scalacompletion.{FacadeFactory, FacadeActor}
-import FacadeActor._
+import vim.scalacompletion.FacadeActor._
+import vim.scalacompletion.Projects
 import akka.util.Timeout
 import scala.concurrent.duration._
 
@@ -39,8 +39,7 @@ trait SprayApi[T] extends HttpService {
   path("init") {
     post {
       formField('conf) { configPath =>
-        //TODO: tests that it was ask, and not tell
-        val future = (projects ? FacadeActor.Init(configPath)).map { _=> configPath }
+        val future = (projects ? Projects.Create(configPath)).map { _=> configPath }
         complete(future)
       }
     }
