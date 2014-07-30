@@ -14,11 +14,10 @@ class init(implicit val system: ActorSystem) extends Scope
                                                  with Mockito
                                                  with ThrownExpectations {
   val projectProbe = TestProbe()
-  val project = projectProbe.ref
+  val projectActor = projectProbe.ref
   val projectFactory = mock[ProjectFactory[Any]]
   val projects = TestActorRef(new Projects(projectFactory))
-  projectFactory.createProject(any) returns project
-
+  projectFactory.createProject(any) returns projectActor
 
   val projectPathStr = "/tmp/dir"
   val projectPath = Paths.get(projectPathStr)
@@ -27,13 +26,15 @@ class init(implicit val system: ActorSystem) extends Scope
 
 class existingProject(override implicit val system: ActorSystem) extends init {
   val fileName = Paths.get("/tmp/dir/file.scala")
-  val project1 = mock[Projects.ProjectInfo]
-  val project2 = mock[Projects.ProjectInfo]
-  project1.contains(fileName) returns false
-  project2.contains(fileName) returns true
-  project2.project returns project
-  projects.underlyingActor.projects = Map((Paths.get("/opt") -> project1),
-                                          (projectPath -> project2))
+  val configPath = Paths.get(configPathStr)
+  val projectInfo1 = mock[Projects.ProjectInfo]
+  val projectInfo2 = mock[Projects.ProjectInfo]
+  projectInfo1.contains(fileName) returns false
+  projectInfo2.contains(fileName) returns true
+  projectInfo2.projectActor returns projectActor
+  projectInfo2.configPath returns configPath
+  projects.underlyingActor.projects = Map((Paths.get("/opt") -> projectInfo1),
+                                          (projectPath -> projectInfo2))
 }
 
 class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
@@ -46,7 +47,7 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
       "respond with project" in new existingProject {
         projects ! Projects.GetProjectFor(fileName.toString)
 
-        expectMsgType[ActorRef] must_== project
+        expectMsgType[ActorRef] must_== projectActor
       }
     }
 
