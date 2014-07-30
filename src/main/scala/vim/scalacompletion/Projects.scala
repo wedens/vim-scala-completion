@@ -14,6 +14,7 @@ object Projects {
   }
 
   case class Create(configPath: String)
+  case class GetFacadeFor(filePath: String)
 }
 
 class Projects[T](facadeFactory: FacadeFactory[T])
@@ -31,19 +32,16 @@ class Projects[T](facadeFactory: FacadeFactory[T])
   var projects = Map[Path, ProjectInfo]()
 
   def receive = {
+    case GetFacadeFor(filePathStr) =>
+      val filePath = Paths.get(filePathStr)
+      val facade = getProjectFor(filePath).map(_.facade).get
+      sender ! facade
     case Create(configPathStr) =>
       val configPath = Paths.get(configPathStr)
       val projectPath = configPath.getParent
       val facade = facadeFactory.createFacade(context)
       projects = projects + (projectPath -> ProjectInfo(configPath, projectPath, facade))
       (facade ? Init(configPathStr)) pipeTo sender
-    case msg: CompleteAt =>
-      val filePath = Paths.get(msg.name)
-      getProjectFor(filePath) match {
-        case Some(project) => project.facade forward msg
-        // TODO: send failure to sender
-        case None => log.warning(s"Project is not started!")
-      }
   }
 
   def getProjectFor(filePath: Path) =

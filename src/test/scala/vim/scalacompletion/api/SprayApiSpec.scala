@@ -24,12 +24,22 @@ class apiSetup(implicit sys: ActorSystem) extends Scope
                                           with ThrownExpectations
                                           with SprayApi[String] {
   override def actorRefFactory = sys
-  val projectsProbe = TestProbe()
-  projectsProbe.setAutoPilot(new TestActor.AutoPilot {
+  val facadeProbe = TestProbe()
+  facadeProbe.setAutoPilot(new TestActor.AutoPilot {
     def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
       msg match {
         case _: CompleteAt =>
           sender ! CompletionResult(Seq[String]())
+          TestActor.KeepRunning
+     }
+  })
+  val facade = facadeProbe.ref
+  val projectsProbe = TestProbe()
+  projectsProbe.setAutoPilot(new TestActor.AutoPilot {
+    def run(sender: ActorRef, msg: Any): TestActor.AutoPilot =
+      msg match {
+        case _: Projects.GetFacadeFor =>
+          sender ! facade
           TestActor.KeepRunning
         case _: Projects.Create =>
           sender ! FacadeActor.Initialized
@@ -61,35 +71,35 @@ class SprayApiSpec extends Specification
       "call completion with correct position" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          projectsProbe.expectMsgType[CompleteAt].offset must_== 25
+          facadeProbe.expectMsgType[CompleteAt].offset must_== 25
         }
       }
 
       "call completion with correct name" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          projectsProbe.expectMsgType[CompleteAt].name must_== sourcePath
+          facadeProbe.expectMsgType[CompleteAt].name must_== sourcePath
         }
       }
 
       "call completion with correct file path" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          projectsProbe.expectMsgType[CompleteAt].path must_== tempPath
+          facadeProbe.expectMsgType[CompleteAt].path must_== tempPath
         }
       }
 
       "call completion with correct prefix" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          projectsProbe.expectMsgType[CompleteAt].prefix must beSome("abc")
+          facadeProbe.expectMsgType[CompleteAt].prefix must beSome("abc")
         }
       }
 
       "call completion without prefix" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest(prefix = None) ~> apiRoutes ~> check {
-          projectsProbe.expectMsgType[CompleteAt].prefix must beNone
+          facadeProbe.expectMsgType[CompleteAt].prefix must beNone
         }
       }
 

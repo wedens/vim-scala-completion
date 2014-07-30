@@ -42,6 +42,14 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
                       with NoTimeConversions {
 
   "projects" should {
+    "obtaining facade by path" should {
+      "respond with facade" in new existingProject {
+        projects ! Projects.GetFacadeFor(fileName.toString)
+
+        expectMsgType[ActorRef] must_== facade
+      }
+    }
+
     "project creation" should {
       "create new project" in new init {
         projects ! Projects.Create(configPathStr)
@@ -54,19 +62,6 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
 
         facadeProbe.expectMsgType[FacadeActor.Init] must_== FacadeActor.Init(configPathStr)
       }
-    }
-
-    "completion request" should {
-      "be forwarded to existing project" in new existingProject {
-        val completionRequest = mock[FacadeActor.CompleteAt]
-        completionRequest.name returns fileName.toString
-
-        projects ! completionRequest
-
-        facadeProbe.expectMsgType[FacadeActor.CompleteAt] must_== completionRequest
-      }
-
-      "reply with failure when project not started" in pending
     }
   }
 }
