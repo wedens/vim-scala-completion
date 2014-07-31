@@ -64,6 +64,14 @@ class ProjectsSpec extends TestKit(ActorSystem("ProjectsSpec"))
         projectProbe.expectMsgType[Project.Init] must_== Project.Init(configPathStr)
       }
     }
+
+    "project restart" should {
+      "reinitialize project" in new existingProject {
+        projects ! Projects.Restarted(projectActor)
+
+        projectProbe.expectMsgType[Project.Init] must_== Project.Init(configPathStr)
+      }
+    }
   }
 }
 

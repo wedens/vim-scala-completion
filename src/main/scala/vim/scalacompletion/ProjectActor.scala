@@ -47,6 +47,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   }
 
   override def postRestart(ex: Throwable) = {
+    context.parent ! Projects.Restarted(self)
     log.warning("Project restarted after failure", ex)
   }
 

@@ -14,6 +14,7 @@ object Projects {
   }
 
   case class Create(configPath: String)
+  case class Restarted(projectActor: ActorRef)
   case class GetProjectFor(filePath: String)
 }
 
@@ -43,8 +44,15 @@ class Projects[T](projectFactory: ProjectFactory[T])
       val projectActor = projectFactory.createProject(context)
       projects = projects + (projectPath -> ProjectInfo(configPath, projectPath, projectActor))
       (projectActor ? Init(configPathStr)) pipeTo sender
+    case Restarted(projectActor) =>
+      val project = getProjectFor(projectActor)
+      // TODO: handle not found
+      val configPathStr = project.map(_.configPath.toString).get.toString
+      projectActor ! Init(configPathStr)
   }
 
+  def getProjectFor(projectActor: ActorRef) =
+    projects.find { case (_, project) => project.projectActor == projectActor }.map(_._2)
   def getProjectFor(filePath: Path) =
     projects.find { case (_, project) => project.contains(filePath) }.map(_._2)
 }
