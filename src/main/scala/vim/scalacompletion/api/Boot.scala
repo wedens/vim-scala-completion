@@ -50,13 +50,6 @@ object Boot extends App with WithLog {
   val projects = system.actorOf(Props(new Projects(projectFactory)), "Projects")
   val api = system.actorOf(Props(new SprayApiActor(transformer, projects)), "api")
 
-  val apiWatcher = system.actorOf(Props(new Actor {
-    context.watch(api)
-    def receive = {
-      case Terminated(api) => watchServiceThread.interrupt()
-    }
-  }))
-
   implicit val bindingTimeout = Timeout(1.second)
   import system.dispatcher
   val port = 8085
@@ -69,5 +62,9 @@ object Boot extends App with WithLog {
     case Http.CommandFailed(_: Http.Bind) =>
       logg.error(s"Unable to start scala completion server. Port $port is occupied by some other process.")
       system.shutdown()
+  }
+
+  system.registerOnTermination {
+    watchServiceThread.interrupt()
   }
 }
