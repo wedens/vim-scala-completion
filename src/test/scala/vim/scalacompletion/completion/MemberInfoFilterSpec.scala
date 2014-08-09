@@ -21,5 +21,9 @@ class MemberInfoFilterSpec extends Specification {
     "not filter out member that starts with prefix" in {
       MemberInfoFilter(Some("pfx"), MemberInfo("pfxxxx", "", false)) must beTrue
     }
+
+    "filter out inaccessible members" in {
+      MemberInfoFilter(None, MemberInfo("", "", isAccessible = false)) must beFalse
+    }
   }
 }

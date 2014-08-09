@@ -8,6 +8,6 @@ object MemberInfoFilter extends MemberFilter[MemberInfo] {
       case Some(p) => member.name.startsWith(p)
       case None => true
     }
-    !member.isConstructor && startsWithPrefix
+    !member.isConstructor && startsWithPrefix && member.isAccessible
   }
 }

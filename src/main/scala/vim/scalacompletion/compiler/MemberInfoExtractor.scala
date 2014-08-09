@@ -23,10 +23,12 @@ class MemberInfoExtractorForMemberInfo extends MemberInfoExtractor[MemberInfo] {
                            sym.owner == definitions.AnyRefClass ||
                            sym.owner == definitions.ObjectClass
 
+    val isAccessible = member.accessible
+
     MemberInfo(name, fullSignature,
       isConstructor, isLocal,
       isPublic, isFromRootObjects,
-      isInherited)
+      isInherited, isAccessible)
   }
 }
 
