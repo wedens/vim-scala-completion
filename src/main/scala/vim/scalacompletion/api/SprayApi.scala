@@ -27,22 +27,24 @@ trait SprayApi[T] extends HttpService {
 
   val apiRoutes = path("completion") {
     get {
-      parameters('name, 'file_path, 'offset.as[Int], 'prefix.?) { (name, filePath, offset, prefix) =>
-        val future = for {
-          project           <- (projects ? Projects.GetProjectFor(name)).mapTo[ActorRef]
-          completionResult <- (project ? CompleteAt(name, filePath, offset, prefix))
-                                                           .mapTo[CompletionResult[T]]
-        } yield transformer.transformCompletion(completionResult.members)
-
-        complete(future)
+      parameters('name, 'file_path, 'line.as[Int], 'column.as[Int], 'prefix.?) { (name, filePath, lineIdx, columnIdx, prefix) =>
+        complete {
+          val completeAtMsg = CompleteAt(name, filePath, lineIdx, columnIdx, prefix)
+          for {
+            project          <- (projects ? Projects.GetProjectFor(name)).mapTo[ActorRef]
+            completionResult <- (project ? completeAtMsg)
+              .mapTo[CompletionResult[T]]
+          } yield transformer.transformCompletion(completionResult.members)
+        }
       }
     }
   } ~
   path("init") {
     post {
       formField('conf) { configPath =>
-        val future = (projects ? Projects.Create(configPath)).map { _=> configPath }
-        complete(future)
+        complete {
+          (projects ? Projects.Create(configPath)).map { _=> configPath }
+        }
       }
     }
   }

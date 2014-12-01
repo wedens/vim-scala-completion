@@ -47,7 +47,9 @@ endfu
 fu! s:startOfWord()
   let line = getline('.')
   let start = col('.') - 1
-  while start > 0 && line[start - 1] =~ '\a'
+  " TODO: regex that looks more like scala identifier
+  " while start > 0 && line[start - 1] =~ '\a'
+  while start > 0 && line[start - 1] =~ '[a-zA-Zа-яА-Я]'
     let start -= 1
   endwhile
   return start
@@ -58,12 +60,13 @@ fu! s:doCompletion(prefix)
     call scalacompletion#Start()
   endif
 
-  let offset = s:cursorOffset()
+  let lineIdx = line('.') - 1
+  let columnIdx = virtcol('.') - 1
   let name = s:absolutePath()
   let tmpFilePath = s:saveCurrentBufferToTempFile()
 
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&offset='.offset
+  let command = 'curl -s "'.server_url.'completion?name='.s:urlEncode(name).'&file_path='.s:urlEncode(tmpFilePath).'&line='.lineIdx.'&column='.columnIdx
   if len(a:prefix) > 0
     let command = command."&prefix=".s:urlEncode(a:prefix)
   endif
@@ -83,21 +86,17 @@ fu! s:doCompletion(prefix)
   endtry
 endfu
 
-fu! s:cursorOffset()
-  return printf('%d', line2byte(line('.')) + (col('.')-2))
-endfu
-
 fu! s:absolutePath()
   return expand("%:p")
 endfu
 
 fu! s:saveCurrentBufferToTempFile()
   let buf = getline(1, '$')
-  if &l:fileformat == 'dos'
-    " XXX: line2byte() depend on 'fileformat' option.
-    " so if fileformat is 'dos', 'buf' must include '\r'.
-    let buf = map(buf, 'v:val."\r"')
-  endif
+  " if &l:fileformat == 'dos'
+  "   " XXX: line2byte() depend on 'fileformat' option.
+  "   " so if fileformat is 'dos', 'buf' must include '\r'.
+  "   let buf = map(buf, 'v:val."\r"')
+  " endif
   let file = tempname()
   call writefile(buf, file)
   return file

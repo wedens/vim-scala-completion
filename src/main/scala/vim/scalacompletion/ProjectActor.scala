@@ -13,7 +13,7 @@ import collection.JavaConversions._
 
 object Project {
   case class CompleteAt(name: String, path: String,
-    offset: Int, prefix: Option[String])
+    lineIdx: Int, columnIdx: Int, prefix: Option[String])
   case class CompletionResult[T](members: Seq[T])
 
   case class ReloadSources(sources: Seq[JFile])
@@ -41,7 +41,8 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
 
   def receive = {
     case Init(configPath)                       => init(configPath)
-    case CompleteAt(name, path, offset, prefix) => completeAt(name, path, offset, prefix)
+    case CompleteAt(name, path, lineIdx, columnIdx, prefix) =>
+      completeAt(name, path, lineIdx, columnIdx, prefix)
     case ReloadSources(sources)                 => reloadSources(sources)
     case RemoveSources(sources)                 => removeSources(sources)
   }
@@ -51,11 +52,13 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     log.warning("Project restarted after failure", ex)
   }
 
-  def completeAt(name: String, path: String, offset: Int, prefix: Option[String]) = {
+  def completeAt(name: String, path: String, lineIdx: Int, columnIdx: Int, prefix: Option[String]) = {
+    log.debug(s"Completion requested at ($lineIdx, $columnIdx) in: $name")
     val source = sourceFileFactory.createSourceFile(name, path)
     compiler.reloadSources(List(source))
 
-    val position = source.position(offset)
+    val lineOffset = source.lineToOffset(lineIdx)
+    val position = source.position(lineOffset + columnIdx)
     val members = completionHandler.complete(position, prefix, Some(50))
     sender ! CompletionResult(members)
   }

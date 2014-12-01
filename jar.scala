@@ -3,7 +3,8 @@ import java.util.jar.JarEntry
 import java.util.jar.JarInputStream
 import scala.annotation.tailrec
 
-object JarTest extends App {
+object JarTest {
+// object JarTest extends App {
 
   def fileNameFilter(fileName: String): Boolean = {
     fileName.endsWith(".class") &&
