@@ -65,13 +65,15 @@ class SprayApiSpec extends Specification
     "GET /completion" should {
       def completionRequest(prefix: Option[String] = Some("abc")) = {
         val pfx = prefix.map(p => "&prefix=" + p) getOrElse ""
-        Get(s"/completion?offset=25&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}")
+        Get(s"/completion?line=20&column=15&name=$urlEncodedName&file_path=${urlEncodedFilePath}${pfx}")
       }
 
       "call completion with correct position" in new apiSetup {
         transformer.transformCompletion(any) returns ""
         completionRequest() ~> apiRoutes ~> check {
-          projectProbe.expectMsgType[CompleteAt].offset must_== 25
+          val msg = projectProbe.expectMsgType[CompleteAt]
+          msg.lineIdx must_== 20
+          msg.columnIdx must_== 15
         }
       }
 

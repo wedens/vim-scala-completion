@@ -23,6 +23,7 @@ class Projects[T](projectFactory: ProjectFactory[T])
   import Project._
   import Projects._
 
+  //TODO: move timeouts to one place
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = context.dispatcher
 
@@ -43,7 +44,7 @@ class Projects[T](projectFactory: ProjectFactory[T])
       val projectPath = configPath.getParent
       val projectActor = projectFactory.createProject(context)
       projects = projects + (projectPath -> ProjectInfo(configPath, projectPath, projectActor))
-      (projectActor ? Init(configPathStr)) pipeTo sender
+      projectActor.ask(Init(configPathStr))(30.seconds) pipeTo sender
     case Restarted(projectActor) =>
       val project = getProjectFor(projectActor)
       // TODO: handle not found

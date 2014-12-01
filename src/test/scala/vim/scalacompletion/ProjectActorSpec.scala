@@ -143,12 +143,12 @@ class ProjectSpec extends TestKit(ActorSystem("ProjectSpec"))
     }
 
     "completion" should {
-      //TODO
-      val offset = 35
+      val lineIdx = 10
+      val columnIdx = 22
       val sourceName = "/src/main/scala/pkg/Source.scala"
       val sourcePath = "/tmp/6157147744291722932"
       def completeAt(prefix: Option[String] = None) =
-        CompleteAt(sourceName, sourcePath, offset, prefix)
+        CompleteAt(sourceName, sourcePath, lineIdx, columnIdx, prefix)
 
       "respond with completion result" in new projectCompletion {
         val future = (project ? completeAt()).mapTo[CompletionResult[String]]

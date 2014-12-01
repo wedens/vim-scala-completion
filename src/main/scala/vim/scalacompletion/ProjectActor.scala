@@ -36,6 +36,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   var sourcesWatcher: ActorRef = _
   var completionHandler: CompletionHandler[MemberInfoType] = _
 
+  //TODO: move timeouts to one place
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = context.dispatcher
 
@@ -53,7 +54,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   }
 
   def completeAt(name: String, path: String, lineIdx: Int, columnIdx: Int, prefix: Option[String]) = {
-    log.debug(s"Completion requested at ($lineIdx, $columnIdx) in: $name")
+    log.debug(s"Completion requested at ($lineIdx, columnIdx) in: $name")
     val source = sourceFileFactory.createSourceFile(name, path)
     compiler.reloadSources(List(source))
 

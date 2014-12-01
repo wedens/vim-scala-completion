@@ -22,6 +22,7 @@ trait SprayApi[T] extends HttpService {
   val transformer: FormatTransformer[T]
   val projects: ActorRef
 
+  //TODO: move timeouts to one place
   implicit val timeout = Timeout(5.seconds)
   implicit def executionContext = actorRefFactory.dispatcher
 
@@ -43,7 +44,7 @@ trait SprayApi[T] extends HttpService {
     post {
       formField('conf) { configPath =>
         complete {
-          (projects ? Projects.Create(configPath)).map { _=> configPath }
+          projects.ask(Projects.Create(configPath))(30.seconds).map { _=> configPath }
         }
       }
     }
