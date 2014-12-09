@@ -27,6 +27,7 @@ trait IndexBuilder extends FqcnCollector {
             index = index merge fqcns
             left = left - path
             if (left.isEmpty) {
+              println("indexing completed")
               indexPromise success index
               context.stop(self)
             }
@@ -113,7 +114,7 @@ trait FqcnCollector extends FqcnCollection {
     if (Files.isDirectory(path)) {
       collectFqcnsFromDir(path)
     } else {
-      collectFqcnsFromDir(path)
+      collectFqcnsFromJar(path)
     }
 
   lazy val collectFqcnsFromJar: Path => Stream[FQCN] = path =>

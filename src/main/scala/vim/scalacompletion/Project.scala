@@ -83,6 +83,10 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     reloadAllSourcesInDirs(sourcesDirs)
     importsIndex = indexBuilder.buildIndex(context)(classpath.map(p => Paths.get(p)).toSet)
 
+    importsIndex.foreach { _ =>
+      log.info("Index created")
+    }
+
     val originalSender = sender
     (sourcesWatcher ? SourcesWatchActor.WatchDirs(sourcesDirs)).foreach { _ =>
       originalSender ! Initialized
