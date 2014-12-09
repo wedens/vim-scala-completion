@@ -23,7 +23,7 @@ trait SprayApi[T] extends HttpService {
   val projects: ActorRef
 
   //TODO: move timeouts to one place
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(25.seconds)
   implicit def executionContext = actorRefFactory.dispatcher
 
   val apiRoutes = path("completion") {

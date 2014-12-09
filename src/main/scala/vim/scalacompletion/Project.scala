@@ -44,7 +44,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   var importsIndex: Future[Index] = _
 
   //TODO: move timeouts to one place
-  implicit val timeout = Timeout(5.seconds)
+  implicit val timeout = Timeout(25.seconds)
   implicit val ec = context.dispatcher
 
   def receive = {
