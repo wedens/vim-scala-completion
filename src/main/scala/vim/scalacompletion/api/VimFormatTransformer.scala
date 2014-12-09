@@ -13,7 +13,7 @@ class VimFormatTransformer extends FormatTransformer[MemberInfo] {
   }
 
   def transformImportSuggestions(className: String, packages: Set[String]) = {
-    val fqcns = packages.map(_ + className)
+    val fqcns = packages.map(_ + "." + className)
     s"[${fqcns.mkString(", ")}]"
   }
 }

@@ -54,6 +54,14 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     case ReloadSources(sources) => reloadSources(sources)
     case RemoveSources(sources) => removeSources(sources)
     case LookupPackagesForClass(className) =>
+      if (importsIndex.isCompleted) {
+        val originalSender = sender
+        importsIndex.map { index =>
+          originalSender ! index.lookup(className)
+        }
+      } else {
+        sender ! Set.empty
+      }
   }
 
   override def postRestart(ex: Throwable) = {
