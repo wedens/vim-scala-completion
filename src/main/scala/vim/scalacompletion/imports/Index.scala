@@ -1,62 +1,53 @@
 package vim.scalacompletion.imports
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.ActorRefFactory
-import akka.actor.Props
-import scala.collection.JavaConversions._
-import java.nio.file.DirectoryStream
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext.Implicits.global
+import scalaz._
+import scalaz.std.map._
+import scalaz.std.set._
+import scalaz.syntax.semigroup._
+import scalaz.concurrent.Actor
 
 trait IndexBuilder extends FqcnCollector {
-  lazy val buildIndex: ActorRefFactory => Set[Path] => Future[Index] =
-    actorFactory => paths => {
-      val indexPromise = Promise[Index]
-      //TODO: handle timeout
-      val collectionProcessManager = actorFactory.actorOf(Props(new Actor {
-        private var index = Index()
-        private var left = paths
-
-        def receive = {
-          case (fqcns: List[FQCN], path: Path) =>
-            index = index merge fqcns
-            left = left - path
-            if (left.isEmpty) {
-              println("indexing completed")
-              indexPromise success index
-              context.stop(self)
-            }
+  lazy val buildIndex: Set[Path] => Future[Index] = paths => {
+    val indexPromise = Promise[Index]
+    var index = Index()
+    var pathsLeft = paths
+    val collectionProcessManager = Actor[(Index, Path)]({
+      case (indexPortion, path) =>
+        index = index merge indexPortion
+        pathsLeft = pathsLeft - path
+        if (pathsLeft.isEmpty) {
+          indexPromise success index
         }
-      }))
-      paths.foreach { path =>
-        Future {
-          try {
-            val stream = collectFqcnsFrom(path)
-            collectionProcessManager ! (stream.toList, path)
-          } catch {
-            case ex: Exception => indexPromise failure ex
-          }
+    })
+    paths.foreach { path =>
+      Future {
+        try {
+          val stream = collectFqcnsFrom(path)
+          collectionProcessManager ! (Index.fromSet(stream.toSet), path)
+        } catch {
+          case ex: Exception => indexPromise failure ex
         }
       }
-      indexPromise.future
     }
+    indexPromise.future
+  }
+}
+
+object Index {
+  def fromSet(fqcns: Set[FQCN]): Index = Index(fqcns.groupBy(_.className).mapValues(_.map(_.scope)))
 }
 
 case class Index(private val index: Map[String, Set[String]] = Map.empty) {
   def lookup(className: String): Set[String] =
     index.getOrElse(className, Set.empty)
 
-  def merge(fqcns: Seq[FQCN]): Index = {
-    Index(fqcns.foldLeft(index) {
-      case (result, FQCN(scope, className)) =>
-        result + (className -> (result.getOrElse(className, Set.empty) + scope))
-    })
-  }
+  def merge(other: Index): Index = copy(index = index |+| other.index)
 }
 
 case class FQCN(scope: String, className: String)
@@ -124,55 +115,3 @@ trait FqcnCollector extends FqcnCollection {
     fqcnStreamFromFileNameStream(createFilePathStreamFromDir(path))
 }
 
-import java.io.{FileInputStream, File}
-import java.util.jar.JarEntry
-import java.util.jar.JarInputStream
-import scala.util.Try
-
-// TODO: unified error handling during stream processing
-object JarStream {
-  def apply(path: Path): Stream[JarEntry] = {
-    def loop(jis: JarInputStream): Stream[JarEntry] = {
-      val entry = jis.getNextJarEntry
-      if (entry == null) {
-        Try(jis.close)
-        Stream.empty
-      } else {
-        entry #:: loop(jis)
-      }
-    }
-    val jis = new JarInputStream(new FileInputStream(path.toFile))
-    loop(jis)
-  }
-}
-
-
-// TODO: stream left open when exception occured
-// TODO: unified error handling during stream processing
-object RecursiveDirectoryStream {
-  def apply(path: Path): Stream[Path] =
-    recursiveFileListStream(path :: Nil)
-
-  private def recursiveFileListStream(
-    dirsToVisit: List[Path],
-    currentIterator: Iterator[Path] = Iterator.empty,
-    currentStream: Option[DirectoryStream[Path]] = None): Stream[Path] = {
-
-    if (currentIterator.hasNext) {
-      val path = currentIterator.next()
-      if (Files.isDirectory(path)) {
-        path #:: recursiveFileListStream(dirsToVisit :+ path, currentIterator)
-      } else {
-        path #:: recursiveFileListStream(dirsToVisit, currentIterator)
-      }
-    } else {
-      currentStream.foreach(s => Try(s.close()))
-      dirsToVisit match {
-        case x :: xs =>
-          val stream = Files.newDirectoryStream(x)
-          recursiveFileListStream(xs, stream.iterator, Some(stream))
-        case Nil => Stream.empty
-      }
-    }
-  }
-}
