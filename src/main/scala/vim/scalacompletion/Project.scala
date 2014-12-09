@@ -1,19 +1,24 @@
 package vim.scalacompletion
 
 import java.io.{File => JFile}
+import java.nio.file.Paths
 import akka.actor.{Actor, ActorRef, ActorLogging}
 import akka.pattern.ask
 import akka.util.Timeout
 import vim.scalacompletion.compiler._
+import vim.scalacompletion.imports.Index
+import vim.scalacompletion.imports.IndexBuilder
 import vim.scalacompletion.completion._
 import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService,
                                        SourcesWatchActor, SourcesWatchActorFactory}
 import scala.concurrent.duration._
+import scala.concurrent.Future
 import collection.JavaConversions._
 
 object Project {
   case class CompleteAt(name: String, path: String,
     lineIdx: Int, columnIdx: Int, prefix: Option[String])
+  case class LookupPackagesForClass(className: String)
   case class CompletionResult[T](members: Seq[T])
 
   case class ReloadSources(sources: Seq[JFile])
@@ -31,21 +36,24 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   val sourcesWatchActorFactory: SourcesWatchActorFactory
   val compilerFactory: CompilerFactory
   val completionHandlerFactory: CompletionHandlerFactory[MemberInfoType]
+  val indexBuilder: IndexBuilder
 
   var compiler: Compiler = _
   var sourcesWatcher: ActorRef = _
   var completionHandler: CompletionHandler[MemberInfoType] = _
+  var importsIndex: Future[Index] = _
 
   //TODO: move timeouts to one place
   implicit val timeout = Timeout(5.seconds)
   implicit val ec = context.dispatcher
 
   def receive = {
-    case Init(configPath)                       => init(configPath)
+    case Init(configPath) => init(configPath)
     case CompleteAt(name, path, lineIdx, columnIdx, prefix) =>
       completeAt(name, path, lineIdx, columnIdx, prefix)
-    case ReloadSources(sources)                 => reloadSources(sources)
-    case RemoveSources(sources)                 => removeSources(sources)
+    case ReloadSources(sources) => reloadSources(sources)
+    case RemoveSources(sources) => removeSources(sources)
+    case LookupPackagesForClass(className) =>
   }
 
   override def postRestart(ex: Throwable) = {
@@ -73,6 +81,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     sourcesWatcher = sourcesWatchActorFactory.create(self)
     completionHandler = completionHandlerFactory.create(compiler)
     reloadAllSourcesInDirs(sourcesDirs)
+    importsIndex = indexBuilder.buildIndex(context)(classpath.map(p => Paths.get(p)).toSet)
 
     val originalSender = sender
     (sourcesWatcher ? SourcesWatchActor.WatchDirs(sourcesDirs)).foreach { _ =>

@@ -10,6 +10,7 @@ import vim.scalacompletion.filesystem._
 import vim.scalacompletion.compiler._
 import vim.scalacompletion.completion._
 import vim.scalacompletion._
+import vim.scalacompletion.imports.IndexBuilder
 import scala.concurrent.duration._
 
 object Boot extends App with WithLog {
@@ -34,13 +35,15 @@ object Boot extends App with WithLog {
   lazy val configLoader             = new ConfigLoader
   lazy val sourceFileFactory        = new SourceFileFactoryImpl
   lazy val compilerFactory          = new CompilerFactoryImpl
-  lazy val projectFactory            = new ProjectFactory(
+  lazy val indexBuilder             = new IndexBuilder {}
+  lazy val projectFactory           = new ProjectFactory(
                                             configLoader,
                                             sourceFileFactory,
                                             scalaSourcesFinder,
                                             sourcesWatchActorFactory,
                                             compilerFactory,
-                                            completionHandlerFactory)
+                                            completionHandlerFactory,
+                                            indexBuilder)
 
   lazy val transformer              = new VimFormatTransformer()
 

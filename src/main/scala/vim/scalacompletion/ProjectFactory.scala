@@ -4,6 +4,7 @@ import akka.actor.{ActorRefFactory, Props, ActorRef}
 import vim.scalacompletion.compiler._
 import vim.scalacompletion.filesystem._
 import vim.scalacompletion.completion._
+import vim.scalacompletion.imports.IndexBuilder
 
 class ProjectFactory[T](
     configLoader: ConfigLoader,
@@ -11,7 +12,8 @@ class ProjectFactory[T](
     scalaSourcesFinder: ScalaSourcesFinder,
     sourcesWatchActorFactory: SourcesWatchActorFactory,
     compilerFactory: CompilerFactory,
-    completionHandlerFactory: CompletionHandlerFactory[T]
+    completionHandlerFactory: CompletionHandlerFactory[T],
+    indexBuilder: IndexBuilder
   ) { factory =>
 
   def createProject(actorRefFactory: ActorRefFactory): ActorRef =
@@ -23,6 +25,7 @@ class ProjectFactory[T](
         override val configLoader             = factory.configLoader
         override val sourcesWatchActorFactory = factory.sourcesWatchActorFactory
         override val completionHandlerFactory = factory.completionHandlerFactory
+        override val indexBuilder             = factory.indexBuilder
       }
     ))
 }
