@@ -89,7 +89,18 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     sourcesWatcher = sourcesWatchActorFactory.create(self)
     completionHandler = completionHandlerFactory.create(compiler)
     reloadAllSourcesInDirs(sourcesDirs)
-    importsIndex = indexBuilder.buildIndex(classpath.map(p => Paths.get(p)).toSet)
+
+    //TODO: find better place
+    //TODO: get from project?
+    //TODO: include other libraries from boot classpath?
+    def locateRtJar = {
+      System.getProperty("sun.boot.class.path")
+        .split(":")
+        .find(_.endsWith("rt.jar"))
+        .get
+    }
+
+    importsIndex = indexBuilder.buildIndex((classpath :+ locateRtJar).map(p => Paths.get(p)).toSet)
 
     importsIndex.foreach { _ =>
       log.info("Index created")
