@@ -134,3 +134,66 @@ fu! scalacompletion#FindProjectRoot(lookFor)
   endwhile
   return 0
 endf
+
+fu! scalacompletion#AddImport()
+  let wordUnderCursor = expand('<cword>')
+  let name = s:absolutePath()
+
+  let server_url = "http://localhost:8085/"
+  let command = 'curl -s "'.server_url.'imports?name='.s:urlEncode(name).'&class_name='.wordUnderCursor.'"'
+  let result = system(command)
+  let suggestions = eval(result)
+
+  if empty(suggestions)
+    echohl Error | echo "\nNo candidates found for " . wordUnderCursor | echohl None
+    return ''
+  endif
+
+  " construct menu
+  let suggestions_menu_list = ['Select class to import:']
+  for i in range(0, len(suggestions) - 1)
+    call add(suggestions_menu_list, (i+1) . ") " . suggestions[i])
+  endfor
+
+  " prompt for class
+  let idx = inputlist(suggestions_menu_list)
+  " cancelled
+  if idx <= 0
+    return ''
+  endif
+
+  " to list index
+  let idx = idx - 1
+  if idx >= len(suggestions)
+    echohl Error | echo "\nIncorrect selection" | echohl None
+    return ''
+  endif
+
+  let import_statement = 'import' . " " . suggestions[idx]
+
+  " search from beginnig of file
+  call cursor(1, 1)
+  if searchpos("^" . import_statement . ";?$", 'nW')[0] != 0
+    echohl Error | echo "\nThis class is already imported" | echohl None
+    return ''
+  endif
+  " append to the beginning of file if nothing else is found
+  let append_import_to = 0
+  " jump to the last line to start searching backwards
+  call cursor(line('$'), 1)
+  " search for the last import statement
+  let last_import_pos = searchpos('^import', 'bW')[0]
+  if last_import_pos != 0
+    let append_import_to = last_import_pos
+  else
+    " if imports not found, try to find package declaration
+    let package_pos = searchpos('^package')[0]
+    if package_pos != 0
+      let append_import_to = package_pos
+    endif
+  endif
+
+  call append(append_import_to, import_statement)
+
+  return ''
+endfu

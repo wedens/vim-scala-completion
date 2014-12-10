@@ -51,7 +51,7 @@ trait SprayApi[T] extends HttpService {
   } ~
   path("imports") {
     get {
-      parameters('name, 'className) { (name, className) =>
+      parameters('name, 'class_name) { (name, className) =>
         complete {
           for {
             project <- projects.ask(Projects.GetProjectFor(name)).mapTo[ActorRef]
