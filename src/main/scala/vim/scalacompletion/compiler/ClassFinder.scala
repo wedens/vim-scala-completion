@@ -3,10 +3,9 @@ package vim.scalacompletion.compiler
 import scala.tools.nsc.interactive.Global
 import scala.reflect.internal.util.SourceFile
 import vim.scalacompletion.WithLog
+import vim.scalacompletion.imports.SourceFQCN
 
 trait ClassFinder extends WithLog with CompilerHelpers { self: Global =>
-  case class SourceFQCN(scope: String, className: String, file: String)
-
   private class ClassTraverser extends Traverser {
     var fqcns = Seq.empty[SourceFQCN]
 
@@ -25,13 +24,14 @@ trait ClassFinder extends WithLog with CompilerHelpers { self: Global =>
     }
   }
 
-  def findClassesIn(tree: Tree): Seq[SourceFQCN] = {
+  private def findClassesIn(tree: Tree): Seq[SourceFQCN] = {
     val t = new ClassTraverser
     t.traverse(tree)
     t.fqcns
   }
 
-  def fqcnsFromSources(sources: List[SourceFile]): Seq[SourceFQCN] = {
+  // TODO: parallelize?
+  def fqcnsFromSources(sources: List[SourceFile]): Set[SourceFQCN] = {
     sources.flatMap { source =>
       withResponse[Tree](r => askLoadedTyped(source, true, r)).get match {
         case Left(tree) => findClassesIn(tree)
@@ -39,7 +39,7 @@ trait ClassFinder extends WithLog with CompilerHelpers { self: Global =>
           logg.debug(s"Problem obtaining classes from ${source.path}", ex)
           Seq.empty
       }
-    }
+    }.toSet
   }
 }
 

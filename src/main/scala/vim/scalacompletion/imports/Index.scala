@@ -8,6 +8,7 @@ import scala.concurrent.Promise
 import scala.concurrent.ExecutionContext.Implicits.global
 import scalaz._
 import scalaz.std.map._
+import scalaz.std.list._
 import scalaz.std.set._
 import scalaz.syntax.semigroup._
 import scalaz.concurrent.Actor
@@ -41,6 +42,22 @@ trait IndexBuilder extends FqcnCollector {
 
 object Index {
   def fromSet(fqcns: Set[FQCN]): Index = Index(fqcns.groupBy(_.className).mapValues(_.map(_.scope)))
+}
+
+case class SourceFQCN(scope: String, className: String, file: String)
+
+object SourceIndex {
+  def fromSet(fqcns: Set[SourceFQCN]): SourceIndex = SourceIndex(fqcns)
+}
+
+case class SourceIndex(private val index: Set[SourceFQCN] = Set.empty) {
+  def lookup(className: String): Set[String] =
+    index.filter(_.className == className).map(_.scope)
+
+  def removeSource(fileName: String): SourceIndex =
+    copy(index = index.filterNot(_.file == fileName))
+
+  def merge(other: SourceIndex): SourceIndex = copy(index = index |+| other.index)
 }
 
 case class Index(private val index: Map[String, Set[String]] = Map.empty) {

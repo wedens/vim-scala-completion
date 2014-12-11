@@ -7,6 +7,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import vim.scalacompletion.compiler._
 import vim.scalacompletion.imports.Index
+import vim.scalacompletion.imports.SourceIndex
 import vim.scalacompletion.imports.IndexBuilder
 import vim.scalacompletion.completion._
 import vim.scalacompletion.filesystem.{ScalaSourcesFinder, WatchService,
@@ -42,6 +43,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   var sourcesWatcher: ActorRef = _
   var completionHandler: CompletionHandler[MemberInfoType] = _
   var importsIndex: Future[Index] = _
+  var sourceIndex: SourceIndex = _
 
   //TODO: move timeouts to one place
   implicit val timeout = Timeout(25.seconds)
@@ -55,9 +57,11 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     case RemoveSources(sources) => removeSources(sources)
     case LookupPackagesForClass(className) =>
       if (importsIndex.isCompleted) {
+        val fromSources = sourceIndex.lookup(className)
         val originalSender = sender
         importsIndex.map { index =>
-          originalSender ! index.lookup(className)
+          val fromClassfileIndex = index.lookup(className)
+          originalSender ! (fromSources ++ fromClassfileIndex)
         }
       } else {
         sender ! Set.empty
@@ -85,11 +89,6 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     val classpath = config.getStringList("vim.scala-completion.classpath")
     val sourcesDirs = config.getStringList("vim.scala-completion.src-directories")
 
-    compiler = compilerFactory.create(classpath.map(new JFile(_)))
-    sourcesWatcher = sourcesWatchActorFactory.create(self)
-    completionHandler = completionHandlerFactory.create(compiler)
-    reloadAllSourcesInDirs(sourcesDirs)
-
     //TODO: find better place
     //TODO: get from project?
     //TODO: include other libraries from boot classpath?
@@ -101,10 +100,17 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
     }
 
     importsIndex = indexBuilder.buildIndex((classpath :+ locateRtJar).map(p => Paths.get(p)).toSet)
-
     importsIndex.foreach { _ =>
-      log.info("Index created")
+      log.info("Index from classfiles created")
     }
+
+    compiler = compilerFactory.create(classpath.map(new JFile(_)))
+    sourcesWatcher = sourcesWatchActorFactory.create(self)
+    completionHandler = completionHandlerFactory.create(compiler)
+    val sources = findSources(sourcesDirs)
+    compiler.reloadSources(sources)
+
+    sourceIndex = SourceIndex.fromSet(compiler.fqcnsFromSources(sources))
 
     val originalSender = sender
     (sourcesWatcher ? SourcesWatchActor.WatchDirs(sourcesDirs)).foreach { _ =>
@@ -115,16 +121,25 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   def reloadSources(sourcesJFiles: Seq[JFile]) = {
     val sources = filesToSourceFiles(sourcesJFiles)
     compiler.reloadSources(sources)
+    sourceIndex = sources.foldLeft(sourceIndex) {
+      case (idx, s) => idx.removeSource(s.path)
+    }
+    val newFqcns = compiler.fqcnsFromSources(sources)
+    val updatedIndex = SourceIndex.fromSet(newFqcns)
+    sourceIndex = sourceIndex.merge(updatedIndex)
   }
 
   def removeSources(sourcesJFiles: Seq[JFile]) = {
     val sources = filesToSourceFiles(sourcesJFiles)
     compiler.removeSources(sources)
+    sourceIndex = sources.foldLeft(sourceIndex) {
+      case (idx, s) => idx.removeSource(s.path)
+    }
   }
 
-  private def reloadAllSourcesInDirs(dirs: Seq[String]) = {
+  private def findSources(dirs: Seq[String]) = {
     val sourcesJFiles = scalaSourcesFinder.findIn(dirs.map(new JFile(_)).toList)
-    reloadSources(sourcesJFiles)
+    filesToSourceFiles(sourcesJFiles)
   }
 
   private def filesToSourceFiles(sourcesJFiles: Seq[JFile]) = {
