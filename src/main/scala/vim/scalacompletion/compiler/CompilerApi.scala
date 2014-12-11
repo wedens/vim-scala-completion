@@ -5,8 +5,7 @@ import vim.scalacompletion.WithLog
 import scala.reflect.internal.util.{SourceFile, BatchSourceFile}
 import scala.tools.nsc.interactive.Global
 
-trait CompilerApi extends WithLog { self: Global =>
-
+trait CompilerApi extends WithLog with CompilerHelpers { self: Global =>
   def reloadSources(sources: List[SourceFile]): Unit = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
     withResponse[Unit](r => askReload(sources, r)).get
@@ -40,10 +39,13 @@ trait CompilerApi extends WithLog { self: Global =>
     logg.debug(s"Removing sources: ${sources.mkString(",")}")
     withResponse[Unit](r => askFilesDeleted(sources, r)).get
   }
+}
 
-  private def withResponse[A](op: Response[A] => Any): Response[A] = {
+trait CompilerHelpers { self: Global =>
+  def withResponse[A](op: Response[A] => Any): Response[A] = {
     val response = new Response[A]
     op(response)
     response
   }
 }
+
