@@ -8,8 +8,18 @@ import scala.tools.nsc.interactive.Global
 trait CompilerApi
   extends Completion
   with SourceManagement
-  with ClassFinder
+  with TypeInformation
+  with FqcnCollectorFromTree
   with DeclarationFinder { self: Global => }
+
+trait TypeInformation extends CompilerHelpers { self: Global =>
+  def typedTreeForSource(source: SourceFile): Tree = {
+    withResponse[Tree](r => askLoadedTyped(source, true, r)).get match {
+      case Left(tree) => tree
+      case Right(ex) => throw ex
+    }
+  }
+}
 
 trait DeclarationFinder extends CompilerHelpers { self: Global =>
   def findDeclarationOfSymbolAt(pos: Position): Option[Position] = {
