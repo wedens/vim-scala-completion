@@ -5,6 +5,12 @@ import vim.scalacompletion.WithLog
 import scala.reflect.internal.util.{SourceFile, BatchSourceFile}
 import scala.tools.nsc.interactive.Global
 
+trait CompilerApi
+  extends Completion
+  with SourceManagement
+  with ClassFinder
+  with DeclarationFinder { self: Global => }
+
 trait DeclarationFinder extends CompilerHelpers { self: Global =>
   def findDeclarationOfSymbolAt(pos: Position): Option[Position] = {
     withResponse[Tree](r => askTypeAt(pos, r)).get match {
@@ -14,21 +20,14 @@ trait DeclarationFinder extends CompilerHelpers { self: Global =>
   }
 }
 
-trait CompilerApi extends WithLog with CompilerHelpers { self: Global =>
-  def reloadSources(sources: List[SourceFile]): Unit = {
-    logg.debug(s"Reloading sources: ${sources.mkString(",")}")
-    withResponse[Unit](r => askReload(sources, r)).get
-  }
-
+trait Completion extends CompilerHelpers { self: Global =>
   def typeCompletion[T](position: Position, extractor: Member => T): Seq[T] = {
     withResponse[List[Member]](r => askTypeCompletion(position, r)).get match {
       case Left(matches) =>
         ask { () =>
           matches map extractor
         }
-      case Right(ex) =>
-        logg.debug("Exception during type completion", ex)
-        Seq.empty
+      case Right(ex) => Seq.empty
     }
   }
 
@@ -38,14 +37,17 @@ trait CompilerApi extends WithLog with CompilerHelpers { self: Global =>
         ask { () =>
           matches map extractor
         }
-      case Right(ex) =>
-        logg.debug("Exception during scope completion", ex)
-        Seq.empty
+      case Right(ex) => Seq.empty
     }
+  }
+}
+
+trait SourceManagement extends CompilerHelpers { self: Global =>
+  def reloadSources(sources: List[SourceFile]): Unit = {
+    withResponse[Unit](r => askReload(sources, r)).get
   }
 
   def removeSources(sources: List[SourceFile]): Unit = {
-    logg.debug(s"Removing sources: ${sources.mkString(",")}")
     withResponse[Unit](r => askFilesDeleted(sources, r)).get
   }
 }
