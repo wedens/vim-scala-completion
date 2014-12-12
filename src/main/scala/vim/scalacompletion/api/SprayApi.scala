@@ -60,5 +60,18 @@ trait SprayApi[T] extends HttpService {
         }
       }
     }
+  } ~
+  path("declaration") {
+    get {
+      parameters('name, 'file_path, 'line.as[Int], 'column.as[Int]) {
+        (name, filePath, lineIdx, columnIdx) =>
+          complete {
+            for {
+              project <- projects.ask(Projects.GetProjectFor(name)).mapTo[ActorRef]
+              pos <- project.ask(FindDeclaration(name, filePath, lineIdx, columnIdx))
+            } yield pos.toString
+          }
+      }
+    }
   }
 }

@@ -21,6 +21,8 @@ object Project {
     lineIdx: Int, columnIdx: Int, prefix: Option[String])
   case class LookupPackagesForClass(className: String)
   case class CompletionResult[T](members: Seq[T])
+  case class FindDeclaration(name: String, path: String, lineIdx: Int, columnIdx: Int)
+  case class Position(path: String, lineIdx: Int, columnIdx: Int)
 
   case class ReloadSources(sources: Seq[JFile])
   case class RemoveSources(sources: Seq[JFile])
@@ -66,6 +68,18 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
       } else {
         sender ! Set.empty
       }
+
+    case FindDeclaration(name, path, lineIdx, columnIdx) =>
+      val source = sourceFileFactory.createSourceFile(name, path)
+      compiler.reloadSources(List(source))
+
+      val lineOffset = source.lineToOffset(lineIdx)
+      val position = source.position(lineOffset + columnIdx)
+      val defPos = compiler.findDeclarationOfSymbolAt(position).get
+      val defPath = defPos.source.path
+      val defLineIdx = defPos.line
+      val defColumnIdx = defPos.column
+      sender ! Position(defPath, defLineIdx, defColumnIdx)
   }
 
   override def postRestart(ex: Throwable) = {

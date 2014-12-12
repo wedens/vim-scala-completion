@@ -5,6 +5,15 @@ import vim.scalacompletion.WithLog
 import scala.reflect.internal.util.{SourceFile, BatchSourceFile}
 import scala.tools.nsc.interactive.Global
 
+trait DeclarationFinder extends CompilerHelpers { self: Global =>
+  def findDeclarationOfSymbolAt(pos: Position): Option[Position] = {
+    withResponse[Tree](r => askTypeAt(pos, r)).get match {
+      case Left(tree) => Some(tree.symbol.pos)
+      case Right(ex) => None
+    }
+  }
+}
+
 trait CompilerApi extends WithLog with CompilerHelpers { self: Global =>
   def reloadSources(sources: List[SourceFile]): Unit = {
     logg.debug(s"Reloading sources: ${sources.mkString(",")}")
