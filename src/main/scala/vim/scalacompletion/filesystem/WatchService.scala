@@ -39,10 +39,10 @@ class WatchService extends Runnable with WithLog {
       while (!Thread.currentThread.isInterrupted) {
         val key = watchService.take()
         key.pollEvents().foreach { event =>
-          val relativePath = event.context().asInstanceOf[Path]
-          val path = key.watchable().asInstanceOf[Path].resolve(relativePath)
+          val relativePath = event.context.asInstanceOf[Path]
+          val path = key.watchable.asInstanceOf[Path].resolve(relativePath)
           val pathAsFile = path.toFile
-          event.kind() match {
+          event.kind match {
             case ENTRY_CREATE if pathAsFile.isDirectory => watchRecursively(path)
             case ENTRY_CREATE => notify(Created(pathAsFile))
             case ENTRY_DELETE => notify(Deleted(pathAsFile))
@@ -50,6 +50,7 @@ class WatchService extends Runnable with WithLog {
             case x => logg.warn(s"Unknown event kind: $x at path $path")
           }
         }
+        key.reset()
       }
     } catch {
       case e: InterruptedException => logg.info("Watch service is stopped.")
