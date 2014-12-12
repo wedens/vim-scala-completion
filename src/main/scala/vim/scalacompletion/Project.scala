@@ -31,7 +31,7 @@ object Project {
   case object Initialized
 }
 
-trait Project[MemberInfoType] extends Actor with ActorLogging {
+trait Project[MemberInfoType] extends Actor with ActorLogging with PackageNameCalculation {
   import Project._
 
   val configLoader: ConfigLoader
@@ -84,14 +84,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
       sender ! Position(defPath, defLineIdx, defColumnIdx)
 
     case GetPackage(path) =>
-      import java.nio.file.Paths
-      val sourcePath = Paths.get(path)
-      val sourceDirForPath = sourcesDirs.find(sourcePath.startsWith)
-      val sourcePathRelative = sourceDirForPath.map { sd =>
-        Paths.get(sd).relativize(sourcePath)
-      }
-      val withoutFileName = sourcePathRelative.map(_.getParent)
-      val pkgName = withoutFileName.map(_.toString.replaceAll("/", "."))
+      val pkgName = calculatePackage(sourcesDirs)(path)
       sender ! pkgName
   }
 
