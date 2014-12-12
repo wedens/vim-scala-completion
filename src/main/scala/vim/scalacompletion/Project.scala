@@ -23,6 +23,7 @@ object Project {
   case class CompletionResult[T](members: Seq[T])
   case class FindDeclaration(name: String, path: String, lineIdx: Int, columnIdx: Int)
   case class Position(path: String, lineIdx: Int, columnIdx: Int)
+  case class GetPackage(path: String)
 
   case class ReloadSources(sources: Seq[JFile])
   case class RemoveSources(sources: Seq[JFile])
@@ -46,6 +47,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   var completionHandler: CompletionHandler[MemberInfoType] = _
   var importsIndex: Future[Index] = _
   var sourceIndex: SourceIndex = _
+  var sourcesDirs = Seq.empty[String]
 
   //TODO: move timeouts to one place
   implicit val timeout = Timeout(25.seconds)
@@ -80,6 +82,17 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
       val defLineIdx = defPos.line
       val defColumnIdx = defPos.column
       sender ! Position(defPath, defLineIdx, defColumnIdx)
+
+    case GetPackage(path) =>
+      import java.nio.file.Paths
+      val sourcePath = Paths.get(path)
+      val sourceDirForPath = sourcesDirs.find(sourcePath.startsWith)
+      val sourcePathRelative = sourceDirForPath.map { sd =>
+        Paths.get(sd).relativize(sourcePath)
+      }
+      val withoutFileName = sourcePathRelative.map(_.getParent)
+      val pkgName = withoutFileName.map(_.toString.replaceAll("/", "."))
+      sender ! pkgName
   }
 
   override def postRestart(ex: Throwable) = {
@@ -101,7 +114,7 @@ trait Project[MemberInfoType] extends Actor with ActorLogging {
   def init(configPath: String) = {
     val config = configLoader.load(configPath) // TODO: not exists?
     val classpath = config.getStringList("vim.scala-completion.classpath")
-    val sourcesDirs = config.getStringList("vim.scala-completion.src-directories")
+    sourcesDirs = config.getStringList("vim.scala-completion.src-directories")
 
     //TODO: find better place
     //TODO: get from project?

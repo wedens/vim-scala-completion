@@ -73,5 +73,17 @@ trait SprayApi[T] extends HttpService {
           }
       }
     }
+  } ~
+  path("package"){
+    get {
+      parameter('name) { name =>
+        complete {
+          for {
+            project <- projects.ask(Projects.GetProjectFor(name)).mapTo[ActorRef]
+            pkg <- project.ask(GetPackage(name)).mapTo[Option[String]]
+          } yield pkg
+        }
+      }
+    }
   }
 }

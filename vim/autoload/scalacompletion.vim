@@ -135,6 +135,14 @@ fu! scalacompletion#FindProjectRoot(lookFor)
   return 0
 endf
 
+fu! scalacompletion#InsertPkgName()
+  let name = s:absolutePath()
+  let server_url = "http://localhost:8085/"
+  let command = 'curl -s "'.server_url.'package?name='.s:urlEncode(name).'"'
+  let result = system(command)
+  call append(0, 'package '.result)
+endf
+
 fu! scalacompletion#AddImport()
   let wordUnderCursor = expand('<cword>')
   let name = s:absolutePath()
