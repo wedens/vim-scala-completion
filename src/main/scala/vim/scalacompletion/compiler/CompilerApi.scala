@@ -9,7 +9,6 @@ trait CompilerApi
   extends Completion
   with SourceManagement
   with TypeInformation
-  with FqcnCollectorFromTree
   with DeclarationFinder { self: Global => }
 
 trait TypeInformation extends CompilerHelpers { self: Global =>
@@ -22,10 +21,10 @@ trait TypeInformation extends CompilerHelpers { self: Global =>
 }
 
 trait DeclarationFinder extends CompilerHelpers { self: Global =>
-  def findDeclarationOfSymbolAt(pos: Position): Option[Position] = {
+  def findDeclarationOfSymbolAt(pos: Position): Position = {
     withResponse[Tree](r => askTypeAt(pos, r)).get match {
-      case Left(tree) => Some(tree.symbol.pos)
-      case Right(ex) => None
+      case Left(tree) => tree.symbol.pos
+      case Right(ex) => throw ex
     }
   }
 }

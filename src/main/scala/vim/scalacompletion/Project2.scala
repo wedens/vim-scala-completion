@@ -1,10 +1,10 @@
 package vim.scalacompletion
 
 import vim.scalacompletion.config.ConfigurationModule
-import vim.scalacompletion.imports.ClassFileIndexModule
+import vim.scalacompletion.imports.{SourceIndexModule, ClassFileIndexModule}
 import vim.scalacompletion.compiler.Compiler
 import java.nio.file.Path
-import akka.actor.Actor
+import akka.actor.{Props, Actor}
 
 object Project2 {
   case class Complete(fileName: String, filePath: String,
@@ -19,7 +19,7 @@ object Project2 {
 }
 
 trait Project2 extends Actor {
-  self: ConfigurationModule with JavaLibFinder with ClassFileIndexModule =>
+  self: ConfigurationModule with JavaLibFinder with ClassFileIndexModule with SourceIndexModule =>
 
   def configPath: Path
 
@@ -28,6 +28,7 @@ trait Project2 extends Actor {
   private val projectConfig = configLoader.parseConfig(configPath)
   private val classFileIndex = buildClassFileIndex(projectConfig.classpath + locateJavaLib.get)
   private val compiler = Compiler(projectConfig.classpath)
+  private val sourceFileIndex = createIndexForSources(Seq.empty).run(compiler)//TODO
 
   def receive = {
     case Complete(fileName, filePath, lineIdx, columnIdx, prefix) =>
@@ -37,17 +38,7 @@ trait Project2 extends Actor {
   }
 }
 
-import java.nio.file.{Path, Paths}
 
-trait JavaLibFinder {
-  def locateJavaLib: Option[Path]
-}
 
-trait JavaLibFinderFromBootClasspath extends JavaLibFinder {
-  lazy val locateJavaLib: Option[Path] = {
-    System.getProperty("sun.boot.class.path")
-      .split(":")
-      .find(_.endsWith("rt.jar"))
-      .map(Paths.get(_))
-  }
-}
+
+

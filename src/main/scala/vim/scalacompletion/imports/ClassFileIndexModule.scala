@@ -1,53 +1,37 @@
 package vim.scalacompletion.imports
 
-import java.nio.file.Files
-import java.nio.file.Path
-import java.nio.file.Paths
-import scala.concurrent.Future
-import scala.concurrent.Promise
-import scala.concurrent.ExecutionContext.Implicits.global
+import java.nio.file.{Files, Path}
+
+import scalaz.Scalaz._
 import scalaz._
-import scalaz.std.map._
-import scalaz.std.set._
-import scalaz.syntax.semigroup._
-import scalaz.concurrent.Actor
+import scalaz.concurrent.Task
 
 trait ClassFileIndexModule extends FqcnCollector {
-  lazy val buildClassFileIndex: Set[Path] => Future[Index] = paths => {
-    val indexPromise = Promise[Index]
-    var index = Index()
-    var pathsLeft = paths
-    val collectionProcessManager = Actor[(Index, Path)]({
-      case (indexPortion, path) =>
-        index = index merge indexPortion
-        pathsLeft = pathsLeft - path
-        if (pathsLeft.isEmpty) {
-          indexPromise success index
-        }
-    })
-    paths.foreach { path =>
-      Future {
-        try {
-          val stream = collectFqcnsFrom(path)
-          collectionProcessManager ! (Index.fromSet(stream.toSet), path)
-        } catch {
-          case ex: Exception => indexPromise failure ex
-        }
-      }
-    }
-    indexPromise.future
+  implicit val indexInstance = new Monoid[ClassFileIndex] {
+    override def zero: ClassFileIndex = ClassFileIndex()
+    override def append(i1: ClassFileIndex, i2: => ClassFileIndex): ClassFileIndex = i1 merge i2
+  }
+
+  def buildIndexFromClassFiles(classpath: Set[Path]): Task[ClassFileIndex] = {
+    val indexReducer = Reducer.unitReducer[ClassFileIndex, ClassFileIndex](identity)
+    Task.reduceUnordered(classpath.toSeq.map { cp =>
+      Task.fork(Task {
+        val stream = collectFqcnsFrom(cp)
+        ClassFileIndex.fromSet(stream.toSet)
+      })
+    })(indexReducer)
   }
 }
 
-object Index {
-  def fromSet(fqcns: Set[FQCN]): Index = Index(fqcns.groupBy(_.className).mapValues(_.map(_.scope)))
+object ClassFileIndex {
+  def fromSet(fqcns: Set[FQCN]): ClassFileIndex = ClassFileIndex(fqcns.groupBy(_.className).mapValues(_.map(_.scope)))
 }
 
-case class Index(private val index: Map[String, Set[String]] = Map.empty) {
+case class ClassFileIndex(private val index: Map[String, Set[String]] = Map.empty) {
   def lookup(className: String): Set[String] =
     index.getOrElse(className, Set.empty)
 
-  def merge(other: Index): Index = copy(index = index |+| other.index)
+  def merge(other: ClassFileIndex): ClassFileIndex = copy(index = index |+| other.index)
 }
 
 case class FQCN(scope: String, className: String)
