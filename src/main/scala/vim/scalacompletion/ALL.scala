@@ -2,8 +2,10 @@ package vim.scalacompletion
 
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file._
-import vim.scalacompletion.compiler.Compiler
-import vim.scalacompletion.imports.{SourceIndexModule, ClassFileIndexModule, ClassFileIndex, SourceIndex}
+import vim.scalacompletion.compiler.{CompilerModule, Compiler}
+import vim.scalacompletion.completion.{MemberInfo, MemberInfoModule, CompletionModule, CompletionTypeDetectionModule}
+import vim.scalacompletion.config.{ProjectConfig, ConfigurationModule}
+import vim.scalacompletion.imports._
 
 import collection.JavaConversions._
 
@@ -18,18 +20,6 @@ import scalaz._
 import Scalaz._
 
 case class ProjectState(projectPath: Path, compiler: Compiler, importsIndex: ImportsIndex, config: ProjectConfig)
-
-case class ProjectConfig(classpath: Set[Path], sourcesDirs: Set[Path])
-
-case class ImportsIndex(sourceIndex: SourceIndex, classFileIndex: ClassFileIndex) {
-  def lookupForClass(className: String): Set[String] =
-    sourceIndex.lookup(className) ++ classFileIndex.lookup(className)
-}
-
-case class MemberInfo(name: String, fullSignature: String,
-  isConstructor: Boolean = false, isLocal: Boolean = false,
-  isPublic: Boolean = false, isFromRootObjects: Boolean = true,
-  isInherited: Boolean = false, isAccessible: Boolean = true)
 
 trait All
   extends ProjectManagement
@@ -172,182 +162,6 @@ trait ProjectApiModule { self: DeclarationFinderModule with PackageCalculationMo
   }
 }
 
-trait CompletionTypeDetectionModule {
-  sealed trait CompletionType
-  case object Scope extends CompletionType
-  case object Type extends CompletionType
-  case object NoCompletion extends CompletionType
-
-  lazy val completionTypeDetector = new CompletionTypeDetector
-  class CompletionTypeDetector {
-    private val scopeKeywords = Seq("if", "else", "case", "new", "yield", "extends",
-      "with", "class", "trait", "val", "var", "def").map(_.reverse)
-
-    def detectAt(line: String, pos: Int): CompletionType = {
-      val (beforePosAndPos, afterPos) = line.splitAt(pos + 1)
-      val atPos = if (beforePosAndPos.nonEmpty) beforePosAndPos.last else ""
-      if (pos >= line.length && atPos == '.') { // TODO: this is a dirty hack
-        Type
-      } else {
-        val beforePos = if (beforePosAndPos.nonEmpty) beforePosAndPos.init else ""
-        val lineBeforePosReversed = beforePos.reverse
-
-        val notEscapedQuoteRegex = "\"(\\\\\"|[^\"])*".r
-        val matches = notEscapedQuoteRegex.findAllMatchIn(beforePos).toSeq
-        val balanced = matches.length % 2 == 0
-        val insideOfString = !balanced
-        if (insideOfString) {
-          if (lineBeforePosReversed.startsWith("$")) {
-            Scope
-          } else {
-            val openingQuotePosition = matches.last.start
-            val interpolatedExprIdx = beforePos.indexOfSlice("${", openingQuotePosition)
-            if (interpolatedExprIdx == -1) {
-              NoCompletion
-            } else {
-              val exprStart = interpolatedExprIdx + 2
-              val expr = beforePos.drop(exprStart)
-              val posInExpr = pos - exprStart
-              detectAt(expr, posInExpr)
-            }
-          }
-        } else {
-          detectInExpr(lineBeforePosReversed)
-        }
-      }
-    }
-
-    private def detectInExpr(line: String) = {
-      val trimmed = line.trim
-      trimmed.headOption match {
-        // type completion after identifier with following dot
-        case Some('.') => Type
-        // empty line before completion position
-        case None => Scope
-        // scope completion after ';' separator
-        case Some(';') => Scope
-        // after: 'if', 'with' etc
-        case Some(_) if precedingKeyword(trimmed) => Scope
-        // import without any selector: import
-        case Some(_) if emptyImport(line) => Scope
-        // inside '{}' in import: import pkg.nest.{}
-        case Some(_) if importSelectors(trimmed) => Type
-        // complete infix method parameter
-        case Some(_) if infixParameter(trimmed) => Scope
-        // complete infix members
-        case Some(ch) if ch.isLetterOrDigit => Type
-        case _ => Scope
-      }
-    }
-
-    private def isIdentifierChar(ch: String) = {
-      val positive = "[\\p{L}0-9\\p{Punct}\\p{Sm}]".r
-      val exclude = "[^()\\[\\];.,{}\"'$]".r
-
-      exclude.findFirstIn(ch).isDefined && positive.findFirstIn(ch).isDefined
-    }
-
-    private def infixParameter(str: String) = {
-      val wordRemoved = str.dropWhile(!_.isSpaceChar)
-      val somethingBeforeSpace = wordRemoved.length - 1 > 0
-      if (somethingBeforeSpace) {
-        val withoutSpace = wordRemoved.tail
-        val looksLikeIdentifierBeforeSpace = withoutSpace.head.isLetterOrDigit
-        looksLikeIdentifierBeforeSpace
-      } else false
-    }
-
-    private def precedingKeyword(str: String) = scopeKeywords.exists(str.startsWith)
-    private def importSelectors(str: String) = str.matches(".*\\{.* tropmi[\\s;]*")
-    private def emptyImport(str: String) = str.matches("\\s+tropmi[\\s;]*")
-  }
-}
-
-trait MemberInfoModule {
-  def memberInfoFrom(global: Global)(member: global.Member): MemberInfo = {
-    import global.definitions
-
-    val sym           = member.sym
-    val name          = sym.nameString
-    val fullSignature = member.forceInfoString
-    val isConstructor = sym.isConstructor
-    val isLocal       = sym.isLocalToBlock
-    val isPublic      = sym.isPublic
-    val isInherited   = member match {
-      case tm: global.TypeMember => tm.inherited
-      case _ => false
-    }
-    val isFromRootObjects = sym.owner == definitions.AnyClass ||
-                            sym.owner == definitions.AnyRefClass ||
-                            sym.owner == definitions.ObjectClass
-
-    val isAccessible = member.accessible
-
-    MemberInfo(name, fullSignature,
-      isConstructor, isLocal,
-      isPublic, isFromRootObjects,
-      isInherited, isAccessible)
-  }
-
-  def filterMember(prefix: Option[String])(member: MemberInfo): Boolean = {
-    lazy val startsWithPrefix = prefix.map(member.name.startsWith)
-    !member.isConstructor && member.isAccessible && startsWithPrefix.getOrElse(true)
-  }
-
-  def calculateMemberRank(prefix: Option[String])(member: MemberInfo): Int = {
-    ((prefix.isDefined, prefix.map(member.name.length - _.length) | 0) ::
-    (!member.isInherited, 10) ::
-    (member.isLocal, 20) ::
-    (member.isPublic, 10) ::
-    (!member.isFromRootObjects, 30) :: Nil)
-      .foldLeft(0) {
-        case (a, (b, r)) if b => a + r
-        case (a, _) => a
-      }
-  }
-
-  def orderByRankDesc(prefix: Option[String]): scala.math.Ordering[MemberInfo]  =
-    scala.math.Ordering.by(calculateMemberRank(prefix)(_))
-}
-
-trait CompletionModule { self: SourcesManagementModule with CompilerModule with CompletionTypeDetectionModule with MemberInfoModule =>
-  lazy val completion = new Completion
-
-  class Completion {
-    private def positionInSource(source: SourceFile, lineIdx: Int, columnIdx: Int): Position = {
-      val lineOffset = source.lineToOffset(lineIdx)
-      source.position(lineOffset + columnIdx)
-    }
-
-    private def detectCompletionType(position: Position): CompletionType = {
-      val lineContent = position.source.lineToString(position.line)
-      completionTypeDetector.detectAt(lineContent, position.column - 1) // TODO: why -1
-    }
-
-    def members(completionType: CompletionType, position: Position): Reader[Compiler, Seq[MemberInfo]] =
-      Reader { compiler =>
-        val memberInfoExtractor = memberInfoFrom(compiler) _
-        completionType match {
-          case Scope => compiler.typeCompletion(position, memberInfoExtractor)
-          case Type =>
-            val lastCharPosition = position.point - 1
-            compiler.scopeCompletion(position.withPoint(lastCharPosition), memberInfoExtractor)
-          case NoCompletion => Seq.empty
-        }
-      }
-
-  def complete(position: PositionInSource, prefix: Option[String]): Reader[Compiler, Seq[MemberInfo]] =
-    for {
-      source <- sourcesManagement.loadSource(position.sourceName, position.sourcePath)
-      completionPosition = positionInSource(source, position.lineIdx, position.columnIdx)
-      completionType = detectCompletionType(completionPosition)
-      members <- members(completionType, completionPosition)
-    } yield {
-      members filter filterMember(prefix) sorted orderByRankDesc(prefix)
-    }
-  }
-}
-
 trait SourcesManagementModule { self: SourcesFinderModule with CompilerModule =>
   lazy val sourcesManagement = new SourcesManagement
 
@@ -406,36 +220,6 @@ trait SourcesFinderModule {
   }
 }
 
-trait CompilerModule {
-  def createCompiler(classpath: Set[Path]): Compiler = Compiler(classpath)
-}
-
-trait ConfigurationModule {
-  lazy val configReader = new ConfigurationReader
-  class ConfigurationReader {
-    private def loadConfig(configPath: Path): Throwable \/ Config =
-      \/.fromTryCatchNonFatal {
-        ConfigFactory.parseFile(configPath.toFile)
-      }
-
-    private def readConfig(config: Config): Throwable \/ ProjectConfig =
-      for {
-        classpath <- \/.fromTryCatchNonFatal(
-          config.getStringList("vim.scala-completion.classpath"))
-        sourcesDirs <- \/.fromTryCatchNonFatal(
-          config.getStringList("vim.scala-completion.src-directories"))
-      } yield {
-        ProjectConfig(
-          classpath.map(Paths.get(_)).toSet,
-          sourcesDirs.map(Paths.get(_)).toSet
-        )
-      }
-
-    def parseConfig(configPath: Path): Throwable \/ ProjectConfig =
-      loadConfig(configPath) >>= readConfig
-  }
-}
-
 trait DeclarationFinderModule { self: CompilerModule with CompilerModule =>
   lazy val declarationFinder = new DeclarationFinder
 
@@ -455,15 +239,6 @@ trait DeclarationFinderModule { self: CompilerModule with CompilerModule =>
         )
       }
   }
-}
-
-trait ImportsIndexModule { self: ClassFileIndexModule with SourceIndexModule with CompilerModule =>
-  def createImportsIndex(classpath: Set[Path], sources: Seq[SourceFile]): Reader[Compiler, ImportsIndex] =
-    Reader { compiler =>
-      val classFileIndex = buildIndexFromClassFiles(classpath).run
-      val sourcesIndex = createIndexForSources(sources).run(compiler)
-      ImportsIndex(sourcesIndex, classFileIndex)
-    }
 }
 
 trait PackageCalculationModule {

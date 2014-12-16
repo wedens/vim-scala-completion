@@ -4,10 +4,10 @@ import spray.routing.HttpService
 import akka.pattern.ask
 import akka.actor.{Actor, ActorRef}
 import akka.util.Timeout
+import vim.scalacompletion.completion.MemberInfo
 import scala.concurrent.duration._
 import vim.scalacompletion.Projects._
 import vim.scalacompletion.PositionInSource
-import vim.scalacompletion.MemberInfo
 import java.nio.file.Paths
 
 
