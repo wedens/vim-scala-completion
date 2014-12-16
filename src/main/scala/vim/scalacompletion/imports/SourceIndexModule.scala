@@ -2,13 +2,13 @@ package vim.scalacompletion.imports
 
 import java.nio.file.Path
 
+import scala.tools.nsc.interactive.Global
 import scalaz._
 import scalaz.std.set._
 import scalaz.syntax.semigroup._
 import vim.scalacompletion.compiler.{FqcnsCollectorFromTree, Compiler}
 import scala.reflect.internal.util.SourceFile
 import akka.actor.Actor
-import vim.scalacompletion.filesystem.{WatchService, SourceFinderModule}
 
 case class SourceFQCN(scope: String, className: String, file: String)
 

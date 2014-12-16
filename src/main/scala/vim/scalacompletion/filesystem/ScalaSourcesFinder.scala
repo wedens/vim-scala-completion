@@ -28,31 +28,31 @@ import java.nio.file.attribute.BasicFileAttributes
 //   }
 // }
 
-trait SourceFinderModule {
-  def findSourcesIn(directories: Set[Path]): Set[Path] = {
-    directories.flatMap(findSourcesIn)
-  }
-
-  def findSourcesIn(directory: Path): Set[Path] = {
-    val visitor = new SourceVisitor()
-    Files.walkFileTree(directory, visitor)
-    visitor.sources
-  }
-
-  private val scalaSourceRegex = """.*\.scala$""".r
-
-  def isScalaSource(filePath: Path): Boolean =
-    Files.isRegularFile(filePath) &&
-      scalaSourceRegex.findFirstIn(filePath.getFileName.toString).isDefined
-
-  private class SourceVisitor extends SimpleFileVisitor[Path] {
-    var sources = Set.empty[Path]
-
-    override def visitFile(filePath: Path, attrs: BasicFileAttributes): FileVisitResult = {
-      if (isScalaSource(filePath)) {
-        sources = sources + filePath
-      }
-      FileVisitResult.CONTINUE
-    }
-  }
-}
+//trait SourceFinderModule {
+//  def findSourcesIn(directories: Set[Path]): Set[Path] = {
+//    directories.flatMap(findSourcesIn)
+//  }
+//
+//  def findSourcesIn(directory: Path): Set[Path] = {
+//    val visitor = new SourceVisitor()
+//    Files.walkFileTree(directory, visitor)
+//    visitor.sources
+//  }
+//
+//  private val scalaSourceRegex = """.*\.scala$""".r
+//
+//  def isScalaSource(filePath: Path): Boolean =
+//    Files.isRegularFile(filePath) &&
+//      scalaSourceRegex.findFirstIn(filePath.getFileName.toString).isDefined
+//
+//  private class SourceVisitor extends SimpleFileVisitor[Path] {
+//    var sources = Set.empty[Path]
+//
+//    override def visitFile(filePath: Path, attrs: BasicFileAttributes): FileVisitResult = {
+//      if (isScalaSource(filePath)) {
+//        sources = sources + filePath
+//      }
+//      FileVisitResult.CONTINUE
+//    }
+//  }
+//}

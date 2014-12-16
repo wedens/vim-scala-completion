@@ -15,33 +15,17 @@ fu! scalacompletion#Complete(findstart, base)
 endf
 
 fu! scalacompletion#Start()
-  let config_file_name = 'vim_scala_completion.conf'
-  let project_root = scalacompletion#FindProjectRoot(config_file_name)
-  echom "Starting scala completion server for project: ".project_root
-  if project_root == '0'
-    let g:scalacompletion_error = 1
-    echoerr "Can't find project configured for vim-scala-completion! ".config_file_name. " file required in project root."
-    return
-  endif
+  echom "Starting scala completion server"
 
-  let config_path = project_root.'/'.config_file_name
+  let path = s:absolutePath()
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s --data "conf='.s:urlEncode(config_path).'" "'.server_url.'init"'
+  let command = 'curl -s --data "file_path='.s:urlEncode(path).'" "'.server_url.'init"'
   let response = system(command)
   let response_str = eval('"'.response.'"')
 
-  if response_str != config_path
-    let g:scalacompletion_error = 1
-    echoerr "Unexpected response from server: ".response_str
-    return
-  endif
-
-  if &ft == 'scala'
-    setlocal omnifunc=scalacompletion#Complete
-  endif
+  echom response_str
 
   let g:started_scalacompletion = 1
-  echom "Project started successfuly"
 endfu
 
 fu! s:startOfWord()
@@ -118,27 +102,10 @@ fu! s:urlEncode(str)
     return rv
 endf
 
-fu! scalacompletion#FindProjectRoot(lookFor)
-  let pathMaker = '%:p'
-  let pathMaker=pathMaker.':h'
-  let fileToCheck = expand(pathMaker).'/'.a:lookFor
-  if filereadable(fileToCheck)
-    return expand(pathMaker)
-  endif
-  while (len(expand(pathMaker)) > len(expand(pathMaker.':h')))
-    let pathMaker=pathMaker.':h'
-    let fileToCheck = expand(pathMaker).'/'.a:lookFor
-    if filereadable(fileToCheck)
-      return expand(pathMaker)
-    endif
-  endwhile
-  return 0
-endf
-
 fu! scalacompletion#InsertPkgName()
   let name = s:absolutePath()
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s "'.server_url.'package?name='.s:urlEncode(name).'"'
+  let command = 'curl -s "'.server_url.'package?file_path='.s:urlEncode(name).'"'
   let result = system(command)
   call append(0, 'package '.result)
 endf
@@ -148,7 +115,7 @@ fu! scalacompletion#AddImport()
   let name = s:absolutePath()
 
   let server_url = "http://localhost:8085/"
-  let command = 'curl -s "'.server_url.'imports?name='.s:urlEncode(name).'&class_name='.wordUnderCursor.'"'
+  let command = 'curl -s "'.server_url.'imports?file_path='.s:urlEncode(name).'&class_name='.wordUnderCursor.'"'
   let result = system(command)
   let suggestions = eval(result)
 
