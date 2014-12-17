@@ -8,10 +8,22 @@ import scalaz._
 import Scalaz._
 
 trait ImportsIndexModule { self: ClassFileIndexModule with SourceIndexModule with CompilerModule =>
-  def createImportsIndex(classpath: Set[Path], sources: Seq[SourceFile]): Reader[Compiler, ImportsIndex] =
-    Reader { compiler =>
-      val classFileIndex = buildIndexFromClassFiles(classpath).run
-      val sourcesIndex = createIndexForSources(sources).run(compiler)
-      ImportsIndex(sourcesIndex, classFileIndex)
-    }
+  def createImportsIndex(compiler: Compiler, classpath: Set[Path], sources: Seq[SourceFile]): ImportsIndex = {
+    val sourcesIndex = createIndexForSources(compiler, sources)
+    val classFileIndex = buildIndexFromClassFiles(classpath).run
+    ImportsIndex(sourcesIndex, classFileIndex)
+  }
+
+  def removeSourceFromIndex(importsIndex: ImportsIndex, source: SourceFile): ImportsIndex = {
+    val sourceIndex = importsIndex.sourceIndex
+    val updatedSourcesIndex = updateIndexForRemovedSources(sourceIndex, source :: Nil)
+    importsIndex.copy(sourceIndex = updatedSourcesIndex)
+  }
+
+  def updateSourceInIndex(importsIndex: ImportsIndex, source: SourceFile): ImportsIndex = {
+    val sourceIndex = importsIndex.sourceIndex
+    val updatedSourcesIndex = updateIndexForRemovedSources(sourceIndex, source :: Nil)
+    importsIndex.copy(sourceIndex = updatedSourcesIndex)
+  }
 }
+

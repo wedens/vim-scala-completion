@@ -4,6 +4,7 @@ import java.nio.file.{Path, Paths}
 
 import com.typesafe.config.{Config, ConfigFactory}
 
+import collection.JavaConversions._
 import scalaz._
 import Scalaz._
 

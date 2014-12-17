@@ -10,7 +10,6 @@ import vim.scalacompletion.Projects._
 import vim.scalacompletion.PositionInSource
 import java.nio.file.Paths
 
-
 class SprayApiActor(override val transformer: VimFormatTransformer,
                     override val projects: ActorRef
                     ) extends Actor with SprayApi[MemberInfo] {
@@ -44,10 +43,7 @@ trait SprayApi[T] extends HttpService {
       post {
         formField('file_path) { filePath =>
           complete {
-            projects.ask(InitProject(Paths.get(filePath)))(30.seconds).map {
-              case ex: Throwable => throw ex
-              case _ => "Project loaded"
-            }
+            projects.ask(InitProject(Paths.get(filePath)))(30.seconds).mapTo[String]
           }
         }
       }
@@ -67,7 +63,7 @@ trait SprayApi[T] extends HttpService {
           complete {
             val position = PositionInSource(Paths.get(filePath), lineIdx,
               columnIdx)
-            projects.ask(FindDeclaration(position)).map(_.toString)
+            projects.ask(FindDeclaration(position)).mapTo[Option[PositionInSource]].map(_.toString)
           }
       }
     } ~

@@ -16,6 +16,7 @@ import scala.reflect.internal.util.{BatchSourceFile, SourceFile, Position}
 import scala.reflect.io.AbstractFile
 import scala.tools.nsc.interactive.Global
 import akka.actor.Actor
+import akka.actor.Status.Failure
 import scalaz._
 import Scalaz._
 
@@ -51,50 +52,49 @@ object Projects {
   case class SuggestImportsForClass(path: Path, className: String)
 }
 
+case object ProjectNotFound extends Exception("Project not found")
+
 class Projects extends Actor with All {
   import Projects._
 
   private var projectsStates = List.empty[ProjectState]
 
-  private def findProjectStateFor(path: Path): Option[ProjectState] =
-    projectsStates.find(ps => path.startsWith(ps.projectPath))
+  private def withProjectState[T](path: Path)(f: ProjectState => T) =
+    projectsStates
+      .find(ps => path.startsWith(ps.projectPath))
+      .map(f)
+      .getOrElse {
+        sender ! Failure(ProjectNotFound)
+      }
 
   def receive = {
     case InitProject(path) =>
       projectManagement.init(path) match {
-        case -\/(ex) => sender ! ex
+        case -\/(ex) => sender ! Failure(ex)
         case \/-(projectState) =>
           projectsStates = projectState :: projectsStates
           sender ! projectState
       }
 
     case CalculatePackageForFile(path) =>
-      findProjectStateFor(path).map { projectState =>
-        sender ! projectApi.calculatePackageForFile(path).run(projectState)
-      } getOrElse {
-        sender ! new RuntimeException("Project not found")
+      withProjectState(path) { projectState =>
+        sender ! projectApi.calculatePackageForFile(projectState, path)
       }
 
     case FindDeclaration(position) =>
-      findProjectStateFor(position.sourcePath).map { projectState =>
-        sender ! projectApi.findDeclaration(position).run(projectState)
-      } getOrElse {
-        sender ! new RuntimeException("Project not found")
+      withProjectState(position.sourcePath) { projectState =>
+        sender ! projectApi.findDeclaration(projectState, position)
       }
 
     case Complete(position, prefix) =>
       //TODO: some VirtualFile concept?
-      findProjectStateFor(Paths.get(position.sourceName)).map { projectState =>
-        sender ! projectApi.completeAt(position, prefix).run(projectState)
-      } getOrElse {
-        sender ! new RuntimeException("Project not found")
+      withProjectState(Paths.get(position.sourceName)) { projectState =>
+        sender ! projectApi.completeAt(projectState, position, prefix)
       }
 
     case SuggestImportsForClass(path, className) =>
-      findProjectStateFor(path).map { projectState =>
-        sender ! projectApi.suggestImportsForClass(className).run(projectState)
-      } getOrElse {
-        sender ! new RuntimeException("Project not found")
+      withProjectState(path) { projectState =>
+        sender ! projectApi.suggestImportsForClass(projectState, className)
       }
   }
 }
@@ -109,11 +109,9 @@ trait ProjectManagement { self: ConfigurationModule with CompilerModule with Sou
         config <- configReader.parseConfig(projectRoot.resolve(configFileName))
         javaLib <- javaLib
       } yield {
-        lazy val compiler = createCompiler(config.classpath)
-        val (_, importsIndex) = (for {
-          sources <- sourcesManagement.loadAllSourcesFrom(config.sourcesDirs)
-          importsIndex <- createImportsIndex(config.classpath + javaLib, sources)
-        } yield (sources, importsIndex)).run(compiler)
+        val compiler = createCompiler(config.classpath)
+        val sources = sourcesManagement.loadAllSourcesFrom(compiler, config.sourcesDirs)
+        val importsIndex = createImportsIndex(compiler, config.classpath + javaLib, sources)
         ProjectState(projectRoot, compiler, importsIndex, config)
       }
 
@@ -145,20 +143,46 @@ trait ProjectManagement { self: ConfigurationModule with CompilerModule with Sou
   }
 }
 
-trait ProjectApiModule { self: DeclarationFinderModule with PackageCalculationModule with CompletionModule =>
+trait ProjectApiModule {
+  self: DeclarationFinderModule
+    with PackageCalculationModule
+    with CompletionModule
+    with SourcesManagementModule
+    with ImportsIndexModule =>
+
+  type ProjectRequest[A] = Reader[ProjectState, A]
   lazy val projectApi = new ProjectApi
   class ProjectApi {
-    def suggestImportsForClass(className: String): Reader[ProjectState, Set[String]] =
-      Reader((projectState: ProjectState) => projectState.importsIndex.lookupForClass(className))
+    def suggestImportsForClass(projectState: ProjectState, className: String): Set[String] =
+      projectState.importsIndex.lookupForClass(className)
 
-    def calculatePackageForFile(path: Path): Reader[ProjectState, Option[String]] =
-      Reader(ps => packageCalculator.calculatePackageFor(ps.config.sourcesDirs, path))
+    def calculatePackageForFile(projectState: ProjectState, path: Path): Option[String] =
+      packageCalculator.calculatePackageFor(projectState.config.sourcesDirs, path)
 
-    def findDeclaration(position: PositionInSource): Reader[ProjectState, PositionInSource] =
-      declarationFinder.findSymbolDeclaration(position) <=< Reader(_.compiler)
+    def findDeclaration(projectState: ProjectState, position: PositionInSource): Option[PositionInSource] =
+      declarationFinder.findSymbolDeclaration(projectState.compiler, position)
 
-    def completeAt(position: PositionInSource, prefix: Option[String]): Reader[ProjectState, Seq[MemberInfo]] =
-      completion.complete(position, prefix) <=< Reader(_.compiler)
+    def completeAt(projectState: ProjectState, position: PositionInSource, prefix: Option[String]): Seq[MemberInfo] =
+      completion.complete(projectState.compiler, position, prefix)
+
+    def sourceCreated(projectState: ProjectState, path: Path): ProjectState =
+      sourceModified(projectState, path)
+
+    def sourceRemoved(projectState: ProjectState, path: Path): ProjectState = {
+      val compiler = projectState.compiler
+      val source = sourcesManagement.removeSource(compiler, path)
+      val index = projectState.importsIndex
+      val updatedIndex = removeSourceFromIndex(index, source)
+      projectState.copy(importsIndex = index)
+    }
+
+    def sourceModified(projectState: ProjectState, path: Path): ProjectState = {
+      val compiler = projectState.compiler
+      val source = sourcesManagement.loadSource(compiler, path)
+      val index = projectState.importsIndex
+      val updatedIndex = updateSourceInIndex(index, source)
+      projectState.copy(importsIndex = index)
+    }
   }
 }
 
@@ -166,25 +190,37 @@ trait SourcesManagementModule { self: SourcesFinderModule with CompilerModule =>
   lazy val sourcesManagement = new SourcesManagement
 
   class SourcesManagement {
-    def loadAllSourcesFrom(directoriesWithSources: Set[Path]): Reader[Compiler, Seq[SourceFile]] =
-      Reader { compiler =>
-        val sourcesPaths = sourcesFinder.findSourcesIn(directoriesWithSources).toList
-        val sources = sourcesPaths.map { source =>
-          //TODO: dup
-          new BatchSourceFile(AbstractFile.getFile(source.toFile))
-        }
-
-        compiler.reloadSources(sources)
-        sources
+    def loadAllSourcesFrom(compiler: Compiler, directoriesWithSources: Set[Path]): Seq[SourceFile] = {
+      val sourcesPaths = sourcesFinder.findSourcesIn(directoriesWithSources).toList
+      val sources = sourcesPaths.map { source =>
+        //TODO: dup
+        new BatchSourceFile(AbstractFile.getFile(source.toFile))
       }
 
-    def loadSource(sourceName: String, sourcePath: Path): Reader[Compiler, SourceFile] =
-      Reader { compiler =>
-        //TODO: move
-        val source = new BatchSourceFile(sourceName, AbstractFile.getFile(sourcePath.toFile).toCharArray)
-        compiler.reloadSources(source :: Nil)
-        source
-      }
+      compiler.reloadSources(sources)
+      sources
+    }
+
+    def loadSource(compiler: Compiler, sourcePath: Path): SourceFile = {
+      //TODO: move
+      val source = new BatchSourceFile(AbstractFile.getFile(sourcePath.toFile))
+      compiler.reloadSources(source :: Nil)
+      source
+    }
+
+    def loadSource(compiler: Compiler, sourceName: String, sourcePath: Path): SourceFile = {
+      //TODO: move
+      val source = new BatchSourceFile(sourceName, AbstractFile.getFile(sourcePath.toFile).toCharArray)
+      compiler.reloadSources(source :: Nil)
+      source
+    }
+
+    def removeSource(compiler: Compiler, sourcePath: Path): SourceFile = {
+      //TODO: dup
+      val source = new BatchSourceFile(AbstractFile.getFile(sourcePath.toFile))
+      compiler.removeSources(source :: Nil)
+      source
+    }
   }
 }
 
@@ -224,20 +260,20 @@ trait DeclarationFinderModule { self: CompilerModule with CompilerModule =>
   lazy val declarationFinder = new DeclarationFinder
 
   class DeclarationFinder {
-    def findSymbolDeclaration(position: PositionInSource): Reader[Compiler, PositionInSource] =
-      Reader { compiler =>
-        val source = new BatchSourceFile(AbstractFile.getFile(position.sourcePath.toFile)) // TODO: dup
-        // TODO: dup
-        val lineOffset = source.lineToOffset(position.lineIdx)
-        val positionToFind = source.position(lineOffset + position.columnIdx)
-        //TODO: handle if not in source
-        val foundPosition = compiler.findDeclarationOfSymbolAt(positionToFind)
+    def findSymbolDeclaration(compiler: Compiler, position: PositionInSource): Option[PositionInSource] = {
+      val source = new BatchSourceFile(AbstractFile.getFile(position.sourcePath.toFile)) // TODO: dup
+      // TODO: dup
+      val lineOffset = source.lineToOffset(position.lineIdx)
+      val positionToFind = source.position(lineOffset + position.columnIdx)
+      //TODO: handle if not in source
+      compiler.findDeclarationOfSymbolAt(positionToFind).map { foundPosition =>
         PositionInSource(
           Paths.get(foundPosition.source.path),
           foundPosition.line,
           foundPosition.column
         )
       }
+    }
   }
 }
 

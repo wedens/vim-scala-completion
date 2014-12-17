@@ -2,6 +2,9 @@ package vim.scalacompletion.completion
 
 import scala.tools.nsc.interactive.Global
 
+import scalaz._
+import Scalaz._
+
 trait MemberInfoModule {
   def memberInfoFrom(global: Global)(member: global.Member): MemberInfo = {
     import global.definitions
@@ -34,15 +37,14 @@ trait MemberInfoModule {
   }
 
   def calculateMemberRank(prefix: Option[String])(member: MemberInfo): Int = {
-    ((prefix.isDefined, prefix.map(member.name.length - _.length) | 0) ::
-    (!member.isInherited, 10) ::
-    (member.isLocal, 20) ::
-    (member.isPublic, 10) ::
-    (!member.isFromRootObjects, 30) :: Nil)
-      .foldLeft(0) {
-        case (a, (b, r)) if b => a + r
-        case (a, _) => a
-      }
+    val ranks =
+      (!member.isInherited).option(10) ::
+      member.isLocal.option(20) ::
+      member.isPublic.option(10) ::
+      (!member.isFromRootObjects).option(30) ::
+      prefix.map(member.name.length - _.length) :: Nil
+
+    ranks.flatten.sum
   }
 
   def orderByRankDesc(prefix: Option[String]): scala.math.Ordering[MemberInfo]  =

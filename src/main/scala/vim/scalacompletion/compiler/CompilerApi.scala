@@ -21,9 +21,9 @@ trait TypeInformation extends CompilerHelpers { self: Global =>
 }
 
 trait DeclarationFinder extends CompilerHelpers { self: Global =>
-  def findDeclarationOfSymbolAt(pos: Position): Position = {
+  def findDeclarationOfSymbolAt(pos: Position): Option[Position] = {
     withResponse[Tree](r => askTypeAt(pos, r)).get match {
-      case Left(tree) => tree.symbol.pos
+      case Left(tree) => Option(tree.symbol).filterNot(_ == NoSymbol).map(_.pos)
       case Right(ex) => throw ex
     }
   }

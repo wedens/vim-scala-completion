@@ -27,34 +27,29 @@ case class SourceIndex(private val index: Set[SourceFQCN] = Set.empty) {
 }
 
 trait SourceIndexModule extends FqcnsCollectorFromTree {
-  def createIndexForSources(sources: Seq[SourceFile]): Reader[Compiler, SourceIndex] =
-    Reader { compiler =>
-      sources.foldLeft(SourceIndex()) {
-        case (idx, source) =>
-          val tree = compiler.typedTreeForSource(source)
-          val fqcns = createFqcnsFromTreeCollector(compiler)(tree)
-          val sourceIndex = SourceIndex.fromSet(fqcns)
-          idx.merge(sourceIndex)
-      }
+  def createIndexForSources(compiler: Compiler, sources: Seq[SourceFile]): SourceIndex =
+    sources.foldLeft(SourceIndex()) {
+      case (idx, source) =>
+        val tree = compiler.typedTreeForSource(source)
+        val fqcns = createFqcnsFromTreeCollector(compiler)(tree)
+        val sourceIndex = SourceIndex.fromSet(fqcns)
+        idx.merge(sourceIndex)
     }
 
-  def updateIndexForUpdatedSources(index: SourceIndex, sources: Seq[SourceFile]): Reader[Compiler, SourceIndex] =
-    Reader { compiler =>
-      sources.foldLeft(index) {
-        case (idx, source) =>
-          val removedSource = index.removeSource(source.path)
-          val tree = compiler.typedTreeForSource(source)
-          val fqcns = createFqcnsFromTreeCollector(compiler)(tree)
-          val sourceIndex = SourceIndex.fromSet(fqcns)
-          removedSource.merge(sourceIndex)
-      }
+  def updateIndexForUpdatedSources(compiler: Compiler, index: SourceIndex, sources: Seq[SourceFile]): SourceIndex =
+    sources.foldLeft(index) {
+      case (idx, source) =>
+        val removedSource = index.removeSource(source.path)
+        val tree = compiler.typedTreeForSource(source)
+        val fqcns = createFqcnsFromTreeCollector(compiler)(tree)
+        val sourceIndex = SourceIndex.fromSet(fqcns)
+        removedSource.merge(sourceIndex)
     }
 
-  def updateIndexForRemovedSources(index: SourceIndex, sources: Seq[SourceFile]): SourceIndex = {
+  def updateIndexForRemovedSources(index: SourceIndex, sources: Seq[SourceFile]): SourceIndex =
     sources.foldLeft(index) {
       case (idx, source) => index.removeSource(source.path)
     }
-  }
 }
 
 //import vim.scalacompletion.filesystem.FileSystemEvents._
